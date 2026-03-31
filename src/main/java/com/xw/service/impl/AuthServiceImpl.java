@@ -92,15 +92,6 @@ public class AuthServiceImpl implements AuthService {
         // 3. 更新密码 [cite: 29]
         user.setPassword(resetRequest.getNewPassword());
         userMapper.updateById(user);
-
-
-
-
-        System.out.println("ddddddddddddddddddddddddddddddddd");
-
-
-
-
         return Result.success("密码重置成功，请重新登录");
     }
 
