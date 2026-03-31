@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.xw.common.Result;
 import com.xw.dto.LoginRequest;
 import com.xw.dto.RegisterRequest;
+import com.xw.dto.ResetPasswordRequest;
 import com.xw.entity.User;
 import com.xw.mapper.UserMapper;
 import com.xw.service.AuthService;
@@ -70,5 +71,35 @@ public class AuthServiceImpl implements AuthService {
         // 实际开发中会使用 JWT 库（如 jjwt）生成加密字符串
         String mockToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.user_" + user.getId();
         return Result.success(mockToken);
+    }
+
+    @Override
+    public Result<String> resetPassword(ResetPasswordRequest resetRequest) {
+        // 1. 模拟校验验证码 [cite: 25]
+        if (!"123456".equals(resetRequest.getCaptcha())) {
+            return Result.error("验证码错误");
+        }
+
+        // 2. 根据手机号查找用户
+        LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(User::getPhone, resetRequest.getPhone());
+        User user = userMapper.selectOne(queryWrapper);
+
+        if (user == null) {
+            return Result.error("用户不存在");
+        }
+
+        // 3. 更新密码 [cite: 29]
+        user.setPassword(resetRequest.getNewPassword());
+        userMapper.updateById(user);
+
+        return Result.success("密码重置成功，请重新登录");
+    }
+
+    @Override
+    public Result<String> logout() {
+        // 因为目前使用模拟 Token，后端只需返回成功。
+        // 后期如果引入 Redis 黑名单机制，需要在这里失效 Token 。
+        return Result.success("已成功退出登录");
     }
 }
