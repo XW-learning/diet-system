@@ -1,6 +1,8 @@
 package com.xw.controller;
 
 import com.xw.common.Result;
+import com.xw.dto.UpdatePasswordDTO;
+import com.xw.dto.UserUpdateDTO;
 import com.xw.service.UserService;
 import com.xw.vo.UserVO;
 import io.swagger.v3.oas.annotations.Operation;
@@ -24,5 +26,23 @@ public class UserController {
     @GetMapping("/info")
     public Result<UserVO> getUserInfo(@RequestParam Long id) {
         return userService.getUserInfo(id);
+    }
+
+    @Operation(summary = "修改用户基础信息")
+    @PostMapping("/save")
+    public Result<String> updateUserInfo(@RequestBody UserUpdateDTO updateDTO) {
+        return userService.updateUserInfo(updateDTO);
+    }
+
+    @Operation(summary = "修改密码")
+    @PutMapping("/updatePassword")
+    public Result<String> updatePassword(@RequestBody UpdatePasswordDTO updatedpwdDTO) {
+        return userService.updatePassword(updatedpwdDTO);
+    }
+
+    @Operation(summary = "注销账户")
+    @DeleteMapping("/delete")
+    public Result<String> deleteAccount(@RequestParam Long id) {
+        return userService.deleteAccount(id);
     }
 }

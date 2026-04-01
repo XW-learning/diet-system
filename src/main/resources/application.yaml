@@ -1,19 +1,19 @@
 server:
-  port: 8080 # ??????
+  port: 8080 # 服务器端口
 
 spring:
   datasource:
-    # ??????????? diet_system ????
+    # 数据库配置，连接 diet_system 数据库
     url: jdbc:mysql://localhost:3306/diet_system?useUnicode=true&characterEncoding=utf-8&serverTimezone=GMT%2B8
-    username: root # ?? MySQL ???
-    password: 123456 # ?? MySQL ??
+    username: root # MySQL 用户名
+    password: 123456 # MySQL 密码
     driver-class-name: com.mysql.cj.jdbc.Driver
 
-# MyBatis-Plus ??
+# MyBatis-Plus 配置
 mybatis-plus:
   configuration:
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl # ?????? SQL ???????
-    map-underscore-to-camel-case: true # ??????????????????
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl # 控制台打印 SQL 日志
+    map-underscore-to-camel-case: true # 开启下划线到驼峰的自动映射
   global-config:
     db-config:
-      id-type: assign_id # ?????????? ID
+      id-type: assign_id # 使用雪花算法生成 ID

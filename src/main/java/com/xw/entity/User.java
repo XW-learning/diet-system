@@ -18,6 +18,9 @@ public class User {
     private String username;
     private Integer gender;   // 0-女, 1-男
     private Integer status;   // 1-正常, 0-禁用
+    private String avatar;
+    private Integer age;
+    private String email;
     private Long categoryId;
     private LocalDateTime createTime;
 }
