@@ -19,8 +19,8 @@ public interface UserAllergyMapper extends BaseMapper<UserAllergy> {
      * 查询指定用户的过敏食材列表（关联查询食材名称）
      */
     @Select("""
-        SELECT 
-            a.material_id AS materialId, 
+        SELECT
+            a.material_id AS materialId,
             r.name AS name
         FROM t_user_allergy a
         LEFT JOIN t_raw_material r ON a.material_id = r.id
