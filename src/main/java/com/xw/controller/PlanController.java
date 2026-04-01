@@ -2,12 +2,17 @@ package com.xw.controller;
 
 import com.xw.common.Result;
 import com.xw.dto.PlanFavoriteDTO;
+import com.xw.dto.PlanSearchDTO;
 import com.xw.entity.Plan;
 import com.xw.service.PlanService;
+import com.xw.vo.PlanDetailVO;
+import com.xw.vo.PlanVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * @author XW
@@ -23,19 +28,19 @@ public class PlanController {
     @Operation(summary = "获取推荐方案列表")
     @GetMapping("/recommend") // 你的新路径
     // 🌟 这里的返回值必须改成 List
-    public Result<java.util.List<Plan>> getRecommendPlan(@RequestParam Long userId) {
+    public Result<List<Plan>> getRecommendPlan(@RequestParam Long userId) {
         return planService.getRecommendPlan(userId);
     }
 
     @Operation(summary = "更换方案(随机刷新)")
     @PostMapping("/refresh")
-    public Result<java.util.List<Plan>> refreshPlan(@RequestParam Long userId) {
+    public Result<List<Plan>> refreshPlan(@RequestParam Long userId) {
         return planService.refreshPlan(userId);
     }
 
     @Operation(summary = "方案详情(含菜谱)")
     @GetMapping("/detail")
-    public Result<com.xw.vo.PlanDetailVO> getPlanDetail(@RequestParam Long planId) {
+    public Result<PlanDetailVO> getPlanDetail(@RequestParam Long planId) {
         return planService.getPlanDetail(planId);
     }
 
@@ -49,5 +54,11 @@ public class PlanController {
     @GetMapping("/favorites")
     public Result<java.util.List<Plan>> getFavoritePlans(@RequestParam Long userId) {
         return planService.getFavoritePlans(userId);
+    }
+
+    @Operation(summary = "搜索饮食方案 (一框多搜)")
+    @GetMapping("/search")
+    public Result<List<PlanVO>> searchPlans(PlanSearchDTO searchDTO) {
+        return planService.searchPlans(searchDTO);
     }
 }

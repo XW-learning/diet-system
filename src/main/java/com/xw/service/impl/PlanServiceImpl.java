@@ -3,16 +3,20 @@ package com.xw.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.xw.common.Result;
 import com.xw.dto.PlanFavoriteDTO;
+import com.xw.dto.PlanSearchDTO;
 import com.xw.entity.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 import com.xw.mapper.*;
 import com.xw.service.PlanService;
 import com.xw.vo.MealVO;
 import com.xw.vo.PlanDetailVO;
+import com.xw.vo.PlanVO;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -202,5 +206,58 @@ public class PlanServiceImpl implements PlanService {
         // 直接调用我们在第一步手写的联表 SQL
         List<Plan> favoritePlans = planMapper.getUserFavoritePlans(userId);
         return Result.success(favoritePlans);
+    }
+
+    @Override
+    public Result<List<PlanVO>> searchPlans(PlanSearchDTO dto) {
+        LambdaQueryWrapper<Plan> wrapper = new LambdaQueryWrapper<>();
+
+        // 1. 安全底线：只允许查询已启用(status=1)的方案
+        wrapper.eq(Plan::getStatus, 1);
+
+        // 2. 核心：一框多搜逻辑 (关键词匹配 名称 OR 原则 OR 分类名称)
+        if (dto.getKeyword() != null && !dto.getKeyword().trim().isEmpty()) {
+            // 简单的防注入替换
+            String safeKeyword = dto.getKeyword().trim().replace("'", "''");
+
+            // 使用 and(w -> w.xxx.or().xxx) 生成带有括号的 SQL，防止与 status=1 冲突
+            wrapper.and(w -> w
+                    .like(Plan::getName, safeKeyword)
+                    .or()
+                    .like(Plan::getPrinciple, safeKeyword)
+                    .or()
+                    // 魔法指令：直接在子查询里通过关键词找 t_user_category 的分类ID
+                    .inSql(Plan::getCategoryId,
+                            "SELECT id FROM t_user_category WHERE name LIKE '%" + safeKeyword + "%'")
+            );
+        }
+
+        // 3. 目标过滤 (如前端明确传了 goal="减肥")
+        if (dto.getGoal() != null && !dto.getGoal().trim().isEmpty()) {
+            String safeGoal = dto.getGoal().trim().replace("'", "''");
+            wrapper.inSql(Plan::getCategoryId,
+                    "SELECT id FROM t_user_category WHERE name LIKE '%" + safeGoal + "%'");
+        }
+
+        // 4. 最高卡路里限制
+        if (dto.getMaxCalories() != null) {
+            wrapper.le(Plan::getCalorieMax, dto.getMaxCalories());
+        }
+
+        // 5. 按最新发布时间排序
+        wrapper.orderByDesc(Plan::getCreateTime);
+
+        // 执行查询
+        List<Plan> planList = planMapper.selectList(wrapper);
+
+        // 6. 将 Entity 转化为 VO 返回给前端
+        List<PlanVO> voList = new ArrayList<>();
+        for (Plan plan : planList) {
+            PlanVO vo = new PlanVO();
+            BeanUtils.copyProperties(plan, vo);
+            voList.add(vo);
+        }
+
+        return Result.success(voList);
     }
 }

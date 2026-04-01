@@ -1,8 +1,11 @@
 package com.xw.service;
 
 import com.xw.common.Result;
+import com.xw.dto.PlanFavoriteDTO;
+import com.xw.dto.PlanSearchDTO;
 import com.xw.entity.Plan;
 import com.xw.vo.PlanDetailVO;
+import com.xw.vo.PlanVO;
 
 import java.util.List;
 
@@ -33,10 +36,15 @@ public interface PlanService {
     /**
      * 21. 收藏/取消收藏方案
      */
-    Result<String> favoritePlan(com.xw.dto.PlanFavoriteDTO dto);
+    Result<String> favoritePlan(PlanFavoriteDTO dto);
 
     /**
      * 22. 获取收藏方案列表
      */
     Result<List<Plan>> getFavoritePlans(Long userId);
+
+    /**
+     * 24. 搜索饮食方案 (支持关键词模糊查询名称、原则、人群分类)
+     */
+    Result<List<PlanVO>> searchPlans(PlanSearchDTO searchDTO);
 }

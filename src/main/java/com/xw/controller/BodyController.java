@@ -2,6 +2,7 @@ package com.xw.controller;
 
 import com.xw.common.Result;
 import com.xw.dto.BodyRecordDTO;
+import com.xw.entity.UserBodyRecord;
 import com.xw.service.BodyService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,7 +28,7 @@ public class BodyController {
 
     @Operation(summary = "获取身材记录列表")
     @GetMapping("/list")
-    public Result<java.util.List<com.xw.entity.UserBodyRecord>> getRecordList(@RequestParam Long userId) {
+    public Result<java.util.List<UserBodyRecord>> getRecordList(@RequestParam Long userId) {
         return bodyService.getRecordList(userId);
     }
 
