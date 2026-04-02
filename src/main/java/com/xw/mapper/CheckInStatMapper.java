@@ -1,0 +1,12 @@
+package com.xw.mapper;
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.xw.entity.CheckInStat;
+import org.apache.ibatis.annotations.Mapper;
+
+/**
+ * @author XW
+ */
+@Mapper
+public interface CheckInStatMapper extends BaseMapper<CheckInStat> {
+}
