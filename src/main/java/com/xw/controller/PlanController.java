@@ -61,4 +61,10 @@ public class PlanController {
     public Result<List<PlanVO>> searchPlans(PlanSearchDTO searchDTO) {
         return planService.searchPlans(searchDTO);
     }
+
+    @Operation(summary = "获取我的专属定制方案列表")
+    @GetMapping("/custom/list")
+    public Result<List<com.xw.entity.UserCustomPlan>> getCustomPlans(@RequestParam Long userId) {
+        return planService.getCustomPlans(userId);
+    }
 }

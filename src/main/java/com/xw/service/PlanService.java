@@ -47,4 +47,11 @@ public interface PlanService {
      * 24. 搜索饮食方案 (支持关键词模糊查询名称、原则、人群分类)
      */
     Result<List<PlanVO>> searchPlans(PlanSearchDTO searchDTO);
+
+    /**
+     * 获取用户的专属定制方案列表
+     * @param userId 用户ID
+     * @return 自定义方案列表
+     */
+    Result<java.util.List<com.xw.entity.UserCustomPlan>> getCustomPlans(Long userId);
 }

@@ -41,6 +41,9 @@ public class PlanServiceImpl implements PlanService {
     @Autowired
     private UserPreferenceMapper preferenceMapper;
 
+    @Autowired
+    private UserCustomPlanMapper customPlanMapper;
+
     @Override
     public Result<List<Plan>> getRecommendPlan(Long userId) {
         return generateIntelligentPlans(userId, false); // false代表首页推荐
@@ -259,5 +262,23 @@ public class PlanServiceImpl implements PlanService {
         }
 
         return Result.success(voList);
+    }
+
+    @Override
+    public Result<List<com.xw.entity.UserCustomPlan>> getCustomPlans(Long userId) {
+        // 1. 参数校验
+        if (userId == null) {
+            return Result.error("用户ID不能为空");
+        }
+
+        // 2. 构造查询条件：查该用户的所有自定义方案，并按创建时间倒序（最新的在最上面）
+        LambdaQueryWrapper<com.xw.entity.UserCustomPlan> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(com.xw.entity.UserCustomPlan::getUserId, userId)
+                .orderByDesc(com.xw.entity.UserCustomPlan::getCreateTime);
+
+        // 3. 执行查询
+        List<com.xw.entity.UserCustomPlan> customPlans = customPlanMapper.selectList(wrapper);
+
+        return Result.success(customPlans);
     }
 }
