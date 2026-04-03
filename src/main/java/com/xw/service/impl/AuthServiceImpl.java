@@ -2,9 +2,9 @@ package com.xw.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.xw.common.Result;
-import com.xw.dto.LoginRequest;
-import com.xw.dto.RegisterRequest;
-import com.xw.dto.ResetPasswordRequest;
+import com.xw.dto.LoginDTO;
+import com.xw.dto.RegisterDTO;
+import com.xw.dto.ResetPasswordDTO;
 import com.xw.entity.User;
 import com.xw.mapper.UserMapper;
 import com.xw.service.AuthService;
@@ -12,6 +12,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 
+/**
+ * @author XW
+ */
 @Service
 public class AuthServiceImpl implements AuthService {
 
@@ -19,7 +22,7 @@ public class AuthServiceImpl implements AuthService {
     private UserMapper userMapper;
 
     @Override
-    public Result<String> register(RegisterRequest regRequest) {
+    public Result<String> register(RegisterDTO regRequest) {
         // 1. 模拟校验验证码（后期可接入阿里云/腾讯云短信服务）
         if (!"123456".equals(regRequest.getCaptcha())) {
             return Result.error("验证码错误");
@@ -51,14 +54,14 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public Result<String> login(LoginRequest loginRequest) { // 改为接收 DTO
+    public Result<String> login(LoginDTO loginDTO) { // 改为接收 DTO
         // 1. 根据手机号查询用户 [cite: 25]
         LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(User::getPhone, loginRequest.getPhone());
+        queryWrapper.eq(User::getPhone, loginDTO.getPhone());
         User user = userMapper.selectOne(queryWrapper);
 
         // 2. 校验用户是否存在及密码是否匹配
-        if (user == null || !user.getPassword().equals(loginRequest.getPassword())) {
+        if (user == null || !user.getPassword().equals(loginDTO.getPassword())) {
             return Result.error("手机号或密码错误");
         }
 
@@ -74,7 +77,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public Result<String> resetPassword(ResetPasswordRequest resetRequest) {
+    public Result<String> resetPassword(ResetPasswordDTO resetRequest) {
         // 1. 模拟校验验证码 [cite: 25]
         if (!"123456".equals(resetRequest.getCaptcha())) {
             return Result.error("验证码错误");

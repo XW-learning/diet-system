@@ -6,17 +6,17 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
+ * 管理员实体类
  * @author XW
  */
 @Data
-@TableName("t_ai_recognize")
-public class AiRecognize {
+@TableName("t_admin") // 映射数据库表名
+public class Admin {
     @TableId
     private Long id;
-    private Long userId;
-    private String imageUrl;
-    // 存大模型返回的原始 JSON
-    private String result;
-    private Integer calorie;
+    private String username;
+    private String password;
+    private String role; // 超级管理员/普通管理员
+    private Integer status; // 状态：1正常 0禁用
     private LocalDateTime createTime;
 }

@@ -7,7 +7,7 @@ import lombok.Data;
  * @author XW
  */
 @Data
-public class LoginRequest {
+public class LoginDTO {
     @NotBlank(message = "手机号不能为空")
     private String phone;
 

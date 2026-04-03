@@ -9,5 +9,6 @@ import lombok.Data;
 public class PlanFavoriteDTO {
     private Long userId;
     private Long planId;
-    private Integer action; // 1-收藏，0-取消收藏
+    // 1-收藏，0-取消收藏
+    private Integer action;
 }

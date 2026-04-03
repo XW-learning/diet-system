@@ -16,9 +16,12 @@ public class CheckIn {
     private Long id;
     private Long userId;
     private LocalDate date;
-    private Integer budgetCalorie; // 新增：当日预算
-    private Integer totalCalorie;  // 饮食摄入总和
-    private Integer burnCalorie;   // 新增：运动消耗总和
+    // 新增：当日预算
+    private Integer budgetCalorie;
+    // 饮食摄入总和
+    private Integer totalCalorie;
+    // 新增：运动消耗总和
+    private Integer burnCalorie;
     private String remark;
     private LocalDateTime createTime;
 }

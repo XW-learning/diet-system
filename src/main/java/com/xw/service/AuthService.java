@@ -1,25 +1,25 @@
 package com.xw.service;
 
 import com.xw.common.Result;
-import com.xw.dto.LoginRequest;    // 导入登录 DTO
-import com.xw.dto.RegisterRequest; // 导入注册 DTO
-import com.xw.dto.ResetPasswordRequest;
+import com.xw.dto.LoginDTO;
+import com.xw.dto.RegisterDTO;
+import com.xw.dto.ResetPasswordDTO;
 
 public interface AuthService {
     /**
-     * 用户注册 - 参数必须改为 RegisterRequest
+     * 用户注册 - 参数必须改为 RegisterDTO
      */
-    Result<String> register(RegisterRequest regRequest);
+    Result<String> register(RegisterDTO regRequest);
 
     /**
-     * 用户登录 - 参数建议同步改为 LoginRequest [cite: 193]
+     * 用户登录 - 参数建议同步改为 LoginDTO [cite: 193]
      */
-    Result<String> login(LoginRequest loginRequest);
+    Result<String> login(LoginDTO loginDTO);
 
     /**
      * 重置密码
      */
-    Result<String> resetPassword(ResetPasswordRequest resetRequest);
+    Result<String> resetPassword(ResetPasswordDTO resetRequest);
 
     /**
      * 退出登录
