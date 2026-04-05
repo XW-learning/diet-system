@@ -17,3 +17,7 @@ mybatis-plus:
   global-config:
     db-config:
       id-type: assign_id # 使用雪花算法生成 ID
+
+# 智谱大模型配置
+zhipu:
+  api-key: "4d2a15ee745d48acbbf6145fb8e5f3c4.aPuXBa3BlaU3hgph" # 替换为你自己的真实 Key

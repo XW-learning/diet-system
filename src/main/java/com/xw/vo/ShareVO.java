@@ -15,17 +15,29 @@ public class ShareVO {
     private Long id;
     private Long userId;
 
-    // 🌟 联表带出的发布者信息，极大提升前端展示体验
+    @Schema(description = "发布者昵称")
     private String username;
+    @Schema(description = "发布者头像")
     private String avatar;
 
+    @Schema(description = "分享文字内容")
     private String content;
+    @Schema(description = "可见性：0公开 1私密")
     private Integer privacy;
-    private Integer auditStatus; // 0待审核 1正常 2违规
+    @Schema(description = "审核状态 0待审核 1正常 2违规")
+    private Integer auditStatus;
 
+    @Schema(description = "点赞数")
     private Integer likeCount;
+    @Schema(description = "评论数")
     private Integer commentCount;
+    @Schema(description = "收藏数")
+    private Integer collectionCount;
 
+    @Schema(description = "转发分享数")
+    private Integer shareCount;
+
+    @Schema(description = "发布时间")
     private LocalDateTime createTime;
 
     @Schema(description = "该动态包含的图片URL列表")

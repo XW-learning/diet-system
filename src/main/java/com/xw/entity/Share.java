@@ -28,6 +28,11 @@ public class Share {
     private Integer likeCount;
 
     private Integer commentCount;
+    // 🌟 新增：收藏数
+    private Integer collectionCount;
+
+    // 🌟 新增：转发分享数
+    private Integer shareCount;
 
     private LocalDateTime createTime;
 }
