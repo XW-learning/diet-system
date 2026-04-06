@@ -257,36 +257,7 @@ public class CheckInServiceImpl implements CheckInService {
         return Result.success("太棒了！您通过【" + exercise.getName() + "】增加了 " + calculatedBurnCalorie + " kcal 可吃额度！");
     }
 
-    @Override
-    public Result<AiDishVO> aiRecognize(MultipartFile file, Long userId) {
-        if (file == null || file.isEmpty()) {
-            return Result.error("请上传清晰的菜品图片");
-        }
 
-        // 1. 【模拟上传】假装把图片传到了 OSS 并拿到了 URL
-        String mockImageUrl = "https://mock-oss.com/images/upload_" + System.currentTimeMillis() + ".jpg";
-
-        // 2. 【模拟大模型调用】这里预留代码位，未来可以替换为调用 Gemini/GPT-4V 接口
-        // --- TODO: 发起 HTTP 请求给大模型，传入图片并解析 JSON ---
-        AiDishVO mockVo = new AiDishVO();
-        mockVo.setDishName("智能识别结果：清炒西兰花配煎牛排");
-        mockVo.setCalorie(420);
-        mockVo.setProtein(30.5);
-        mockVo.setFat(15.2);
-        mockVo.setCarbohydrate(12.0);
-
-        // 3. 将识别记录保存到数据库中，作为后续数据分析或模型纠错的样本
-        AiRecognize aiRecord = new AiRecognize();
-        aiRecord.setUserId(userId);
-        aiRecord.setImageUrl(mockImageUrl);
-        // 存一个 JSON 字符串备用
-        aiRecord.setResult("{\"dishName\":\"清炒西兰花配煎牛排\", \"calorie\":420}");
-        aiRecord.setCalorie(mockVo.getCalorie());
-        aiRecord.setCreateTime(LocalDateTime.now());
-        aiRecognizeMapper.insert(aiRecord);
-
-        return Result.success(mockVo);
-    }
 
     @Override
     public Result<CheckInDetailVO> getCheckInDetail(Long userId, LocalDate date) {

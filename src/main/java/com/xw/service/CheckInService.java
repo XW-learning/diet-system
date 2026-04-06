@@ -41,13 +41,7 @@ public interface CheckInService {
      */
     Result<String> doExerciseCheckIn(ExerciseCheckInDTO dto);
 
-    /**
-     * 4. AI 拍照识别饮食 (Mock)
-     * @param file 图片文件
-     * @param userId 用户ID
-     * @return 识别出的菜品及热量信息
-     */
-    Result<AiDishVO> aiRecognize(MultipartFile file, Long userId);
+
 
     /**
      * 5. 获取某日打卡明细详情

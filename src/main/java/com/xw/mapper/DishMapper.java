@@ -20,11 +20,10 @@ public interface DishMapper extends BaseMapper<Dish> {
      */
     @Select("""
         SELECT
-            d.id, d.name, d.description, d.calorie, d.cook_method AS cookMethod,
-            n.protein, n.fat, n.carbohydrate, n.fiber
-        FROM t_dish d
-        LEFT JOIN t_dish_nutrition n ON d.id = n.dish_id
-        WHERE d.id = #{dishId}
+            id, name, description, calorie, cook_method AS cookMethod,
+            protein, fat, carbohydrate, fiber
+        FROM t_dish
+        WHERE id = #{dishId}
     """)
     DishVO getDishDetailWithNutrition(@Param("dishId") Long dishId);
 

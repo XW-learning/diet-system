@@ -52,14 +52,6 @@ public class CheckInController {
         return checkInService.doExerciseCheckIn(dto);
     }
 
-    @Operation(summary = "4. AI 拍照识别饮食 (Mock)")
-    @PostMapping(value = "/ai-recognize", consumes = "multipart/form-data")
-    public Result<AiDishVO> aiRecognize(
-            @RequestParam("file") MultipartFile file,
-            @RequestParam("userId") Long userId) {
-        return checkInService.aiRecognize(file, userId);
-    }
-
     @Operation(summary = "5. 获取某日打卡明细详情 (含饮食与运动)")
     @GetMapping("/detail")
     public Result<CheckInDetailVO> getCheckInDetail(

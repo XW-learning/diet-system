@@ -19,6 +19,13 @@ public interface DishService {
     Result<List<Dish>> getDishList(String keyword);
 
     /**
+     * 🌟 新增：搜索菜品列表（直接返回携带营养素的 VO 列表）
+     * * @param keyword 搜索关键词
+     * @return 菜品VO列表
+     */
+    List<DishVO> searchDish(String keyword);
+
+    /**
      * 替换菜品（做过敏原校验并返回营养素）
      */
     Result<DishVO> replaceDish(DishReplaceDTO dto);

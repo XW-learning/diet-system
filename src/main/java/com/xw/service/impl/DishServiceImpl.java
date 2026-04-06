@@ -1,6 +1,7 @@
 package com.xw.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.xw.common.Result;
 import com.xw.dto.CustomPlanSaveDTO;
 import com.xw.dto.DishReplaceDTO;
@@ -12,18 +13,20 @@ import com.xw.mapper.UserCustomPlanMapper;
 import com.xw.mapper.UserCustomPlanMealMapper;
 import com.xw.service.DishService;
 import com.xw.vo.DishVO;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * @author XW
  */
 @Service
-public class DishServiceImpl implements DishService {
+public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements DishService {
 
     // 菜品相关 Mapper
     @Autowired
@@ -46,6 +49,23 @@ public class DishServiceImpl implements DishService {
 
         List<Dish> dishList = dishMapper.selectList(wrapper);
         return Result.success(dishList);
+    }
+
+    @Override
+    public List<DishVO> searchDish(String keyword) {
+        // 1. 使用 MyBatis-Plus 构建查询条件
+        List<Dish> dishes = this.lambdaQuery()
+                // 如果 keyword 不为空，则进行模糊查询；如果为空，则查询所有
+                .like(keyword != null && !keyword.trim().isEmpty(), Dish::getName, keyword)
+                .list();
+
+        // 2. 将查出来的 Dish 实体类转换为返回给前端的 DishVO
+        return dishes.stream().map(dish -> {
+            DishVO vo = new DishVO();
+            // BeanUtils 会自动把同名的属性（包含热量、碳水、蛋白质等）拷贝过去
+            BeanUtils.copyProperties(dish, vo);
+            return vo;
+        }).collect(Collectors.toList());
     }
 
     @Override
