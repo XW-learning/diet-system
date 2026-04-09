@@ -1,32 +1,15 @@
 package com.xw.dto;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
-import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import java.time.LocalDate;
 
-/**
- * @author XW
- */
 @Data
-@Schema(description = "饮食打卡请求参数")
 public class MealCheckInDTO {
-    @Schema(description = "用户ID", required = true)
-    private Long userId;
-
-    @Schema(description = "餐次：1早 2午 3晚 4加餐", required = true)
-    private Integer mealType;
-
-    @Schema(description = "菜品ID", required = true)
-    private Long dishId;
-
-    @Schema(description = "类型：1方案 2自定义", defaultValue = "2")
-    private Integer type;
-
-    @JsonFormat(pattern = "yyyy-MM-dd")
-    @Schema(description = "打卡日期(yyyy-MM-dd)，不传默认今天")
-    private LocalDate date;
-
-    @Schema(description = "打卡备注")
-    private String remark;
+    private Long userId;     // 用户ID
+    private Long dishId;     // 菜品ID
+    private Integer mealType; // 餐次类型 (1-早, 2-中, 3-晚)
+    private Integer type;     // 记录类型 (1-方案, 2-自定义)
+    private String remark;    // 备注
+    private LocalDate date;   // 打卡日期
+    private Integer weight;   // 🌟 新增：用户输入的克数
 }

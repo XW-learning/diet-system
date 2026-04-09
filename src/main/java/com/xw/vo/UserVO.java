@@ -10,7 +10,7 @@ import java.time.LocalDate;
 @Data
 public class UserVO {
     // 基础信息 (来自 t_user)
-    private Long id;
+    private String id;
     private String phone;
     private String username;
     private String avatar;

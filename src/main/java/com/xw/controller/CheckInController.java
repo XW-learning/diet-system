@@ -40,9 +40,15 @@ public class CheckInController {
         return checkInService.getSummary(userId, date);
     }
 
-    @Operation(summary = "2. 饮食打卡 (早/中/晚/加餐)")
     @PostMapping("/meal")
-    public Result<String> doMealCheckIn(@RequestBody MealCheckInDTO dto) {
+    public Result<String> doMealCheckIn(@RequestBody MealCheckInDTO dto, @RequestHeader("token") String token) {
+        // 🌟 修改点：删除 dto.setUserId(1L) 的硬编码逻辑
+        // 直接校验前端传入的 userId 是否有效
+        if (dto.getUserId() == null) {
+            return Result.error("打卡失败：用户ID缺失");
+        }
+
+        // 如果你依然需要 token 进行登录校验，可以保留 RequestHeader，但不再用它覆盖 userId
         return checkInService.doMealCheckIn(dto);
     }
 

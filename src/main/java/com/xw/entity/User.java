@@ -2,6 +2,9 @@ package com.xw.entity;
 
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Data;
 import java.time.LocalDateTime;
 
@@ -12,6 +15,7 @@ import java.time.LocalDateTime;
 @TableName("t_user") // 对应数据库表名
 public class User {
     @TableId
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long id;
     private String phone;     // 手机号（唯一登录账号）
     private String password;  // 加密存储的密码

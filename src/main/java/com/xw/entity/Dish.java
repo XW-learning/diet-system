@@ -13,14 +13,18 @@ public class Dish {
     private Long id;
     private String name;
     private String description;
-    private Integer calorie;
+    private Integer calorie; // 原始热量（基于参考重量）
     private String cookMethod;
 
-    // 🌟 新增的宏量营养素字段
+    // 宏量营养素（基于参考重量）
     private BigDecimal carbohydrate;
     private BigDecimal protein;
     private BigDecimal fat;
     private BigDecimal fiber;
+
+    // 🌟 新增字段
+    private BigDecimal refWeight; // 参考重量，例如 100.0
+    private String weightUnit;    // 单位，例如 "克"
 
     private LocalDateTime createTime;
 }
