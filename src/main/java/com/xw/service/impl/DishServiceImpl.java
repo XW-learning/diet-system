@@ -136,4 +136,22 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
         mealDetail.setCreateTime(createTime);
         customPlanMealMapper.insert(mealDetail);
     }
+
+    @Override
+    public List<DishVO> searchDish(String keyword, Integer categoryId) {
+        // 1. 使用 MyBatis-Plus 构建查询条件
+        List<Dish> dishes = this.lambdaQuery()
+                // 如果 keyword 不为空，则进行模糊查询
+                .like(keyword != null && !keyword.trim().isEmpty(), Dish::getName, keyword)
+                // 🌟 新增：如果 categoryId 不为空，则进行分类过滤
+                .eq(categoryId != null, Dish::getCategoryId, categoryId)
+                .list();
+
+        // 2. 转换实体为 VO
+        return dishes.stream().map(dish -> {
+            DishVO vo = new DishVO();
+            BeanUtils.copyProperties(dish, vo);
+            return vo;
+        }).collect(Collectors.toList());
+    }
 }

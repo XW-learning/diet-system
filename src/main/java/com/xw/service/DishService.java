@@ -34,4 +34,12 @@ public interface DishService {
      * 保存用户自定义饮食方案
      */
     Result<String> saveCustomPlan(CustomPlanSaveDTO dto);
+
+    /**
+     * 搜索菜品列表（支持关键词和分类过滤）
+     * @param keyword 搜索关键词
+     * @param categoryId 分类ID
+     * @return 菜品VO列表
+     */
+    List<DishVO> searchDish(String keyword, Integer categoryId);
 }

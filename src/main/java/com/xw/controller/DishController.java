@@ -28,20 +28,18 @@ public class DishController {
     @Autowired
     private SearchHistoryService searchHistoryService;
 
-    @Operation(summary = "获取可选菜品列表 (可按关键词搜索)")
+    @Operation(summary = "获取可选菜品列表 (可按分类和关键词搜索)")
     @GetMapping("/list")
     public Result list(@RequestParam(required = false) String keyword,
-                       @RequestHeader("token") String token) { // 确保能拿到当前登录用户
+                       @RequestParam(required = false) Integer categoryId, // 🌟 新增接收分类ID
+                       @RequestHeader("token") String token) {
 
-        // 1. 原本的查询菜品逻辑
-        List<DishVO> dishList = dishService.searchDish(keyword);
+        // 1. 调用更新后的 Service 方法
+        List<DishVO> dishList = dishService.searchDish(keyword, categoryId);
 
-        // 2. 🌟 如果有搜索词，且查询成功了，异步/同步保存历史记录
+        // 2. 保存搜索历史逻辑保持不变
         if (keyword != null && !keyword.trim().isEmpty()) {
-            // 解析 token 获取 userId (这里根据你实际的 JwtUtils 怎么写的来获取)
-            Long userId = 1L; // 伪代码：请替换为你实际获取当前登录用户ID的代码
-
-            // 保存记录
+            Long userId = 1L; // 实际逻辑应解析token获取
             searchHistoryService.saveOrUpdateHistory(userId, keyword);
         }
 

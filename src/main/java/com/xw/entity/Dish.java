@@ -12,6 +12,7 @@ public class Dish {
     @TableId
     private Long id;
     private String name;
+    private Integer categoryId; // 🌟 新增：所属分类ID
     private String description;
     private Integer calorie; // 原始热量（基于参考重量）
     private String cookMethod;
