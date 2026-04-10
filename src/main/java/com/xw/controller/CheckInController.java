@@ -52,6 +52,21 @@ public class CheckInController {
         return checkInService.doMealCheckIn(dto);
     }
 
+    @Operation(summary = "2.1 批量饮食打卡 (购物车多选)")
+    @PostMapping("/meal/batch")
+    public Result<String> doMealCheckInBatch(@RequestBody List<MealCheckInDTO> dtoList, @RequestHeader(value = "token", required = false) String token) {
+        if (dtoList == null || dtoList.isEmpty()) {
+            return Result.error("打卡失败：食物列表不能为空");
+        }
+
+        // 校验首个记录的 userId 是否存在
+        if (dtoList.get(0).getUserId() == null) {
+            return Result.error("打卡失败：用户ID缺失");
+        }
+
+        return checkInService.doMealCheckInBatch(dtoList);
+    }
+
     @Operation(summary = "3. 运动打卡")
     @PostMapping("/exercise")
     public Result<String> doExerciseCheckIn(@RequestBody ExerciseCheckInDTO dto) {

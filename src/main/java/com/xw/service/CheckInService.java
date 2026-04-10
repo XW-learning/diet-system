@@ -35,6 +35,13 @@ public interface CheckInService {
     Result<String> doMealCheckIn(MealCheckInDTO dto);
 
     /**
+     * 2.1 批量饮食打卡 (多食物合并提交)
+     * @param dtoList 饮食打卡请求参数列表
+     * @return 成功提示
+     */
+    Result<String> doMealCheckInBatch(List<MealCheckInDTO> dtoList);
+
+    /**
      * 3. 运动打卡 (记录运动消耗热量)
      * @param dto 运动打卡请求参数
      * @return 成功提示

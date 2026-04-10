@@ -3,8 +3,11 @@ package com.xw.controller;
 import com.xw.common.Result;
 import com.xw.dto.AdminLoginDTO;
 import com.xw.dto.AdminUpdatePasswordDTO;
+import com.xw.dto.AdminUserQueryDTO;
 import com.xw.service.AdminService;
 import com.xw.vo.AdminVO;
+import com.xw.vo.AdminUserVO;
+import com.xw.common.PageResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,5 +40,29 @@ public class AdminController {
     @PutMapping("/password")
     public Result<String> updatePassword(@RequestBody AdminUpdatePasswordDTO dto) {
         return adminService.updatePassword(dto);
+    }
+
+    @Operation(summary = "43. 获取用户列表（分页+搜索）")
+    @GetMapping("/user/list")
+    public Result<PageResult<AdminUserVO>> getUserList(AdminUserQueryDTO queryDTO) {
+        return adminService.getUserList(queryDTO);
+    }
+
+    @Operation(summary = "44. 查看用户详情")
+    @GetMapping("/user/detail")
+    public Result<AdminUserVO> getUserDetail(@RequestParam Long userId) {
+        return adminService.getUserDetail(userId);
+    }
+
+    @Operation(summary = "45. 禁用/启用用户")
+    @PutMapping("/user/status")
+    public Result<String> updateUserStatus(@RequestParam Long userId, @RequestParam Integer status) {
+        return adminService.updateUserStatus(userId, status);
+    }
+
+    @Operation(summary = "46. 删除用户")
+    @DeleteMapping("/user/delete")
+    public Result<String> deleteUser(@RequestParam Long userId) {
+        return adminService.deleteUser(userId);
     }
 }

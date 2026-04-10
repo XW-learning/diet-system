@@ -150,6 +150,104 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class) // 开启事务，保证要成功一起成功，要失败一起失败
+    public Result<String> doMealCheckInBatch(List<MealCheckInDTO> dtoList) {
+        // 打印参数
+        System.out.println("接收到批量食物提交请求：" + dtoList);
+        if (dtoList == null || dtoList.isEmpty()) {
+            return Result.error("提交失败：食物列表为空");
+        }
+
+        // 假设同一批次打卡属于同一个用户和同一天
+        Long userId = dtoList.get(0).getUserId();
+        java.time.LocalDate targetDate = dtoList.get(0).getDate() != null ? dtoList.get(0).getDate() : java.time.LocalDate.now();
+
+        int totalCalorieToAdd = 0; // 用于累计这一次批量提交的总热量
+        List<com.xw.entity.CheckInDetail> detailList = new ArrayList<>();
+
+        // 1. 遍历计算所有食物的热量和营养素
+        for (MealCheckInDTO dto : dtoList) {
+            if (dto.getDishId() == null || dto.getWeight() == null) continue;
+
+            com.xw.entity.Dish dish = dishMapper.selectById(dto.getDishId());
+            if (dish == null) continue;
+
+            // 计算系数
+            BigDecimal inputWeight = new BigDecimal(dto.getWeight());
+            BigDecimal refWeight = dish.getRefWeight() != null ? dish.getRefWeight() : new BigDecimal("100");
+            BigDecimal factor = inputWeight.divide(refWeight, 6, RoundingMode.HALF_UP);
+
+            // 计算该单项的热量与宏量营养素
+            int cal = factor.multiply(new BigDecimal(dish.getCalorie())).setScale(0, RoundingMode.HALF_UP).intValue();
+            BigDecimal carb = factor.multiply(dish.getCarbohydrate() != null ? dish.getCarbohydrate() : BigDecimal.ZERO);
+            BigDecimal protein = factor.multiply(dish.getProtein() != null ? dish.getProtein() : BigDecimal.ZERO);
+            BigDecimal fat = factor.multiply(dish.getFat() != null ? dish.getFat() : BigDecimal.ZERO);
+            BigDecimal fiber = factor.multiply(dish.getFiber() != null ? dish.getFiber() : BigDecimal.ZERO);
+
+            totalCalorieToAdd += cal;
+
+            // 封装明细对象（暂不设 CheckInId，等主表处理完再设）
+            com.xw.entity.CheckInDetail detail = new com.xw.entity.CheckInDetail();
+            detail.setMealType(dto.getMealType());
+            detail.setDishId(dto.getDishId());
+            detail.setCalorie(cal);
+            detail.setCarbohydrate(carb.setScale(1, RoundingMode.HALF_UP));
+            detail.setProtein(protein.setScale(1, RoundingMode.HALF_UP));
+            detail.setFat(fat.setScale(1, RoundingMode.HALF_UP));
+            detail.setFiber(fiber.setScale(1, RoundingMode.HALF_UP));
+            detail.setType(dto.getType() != null ? dto.getType() : 2);
+            detail.setCreateTime(java.time.LocalDateTime.now());
+
+            detailList.add(detail);
+        }
+
+        if (detailList.isEmpty()) {
+            return Result.error("打卡失败：无可用的食物数据");
+        }
+
+        // 2. 处理主表记录 (只操作一次数据库)
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.xw.entity.CheckIn> query = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+        query.eq(com.xw.entity.CheckIn::getUserId, userId).eq(com.xw.entity.CheckIn::getDate, targetDate);
+        com.xw.entity.CheckIn mainRecord = checkInMapper.selectOne(query);
+
+        if (mainRecord == null) {
+            // 今日首笔记录：初始化
+            mainRecord = new com.xw.entity.CheckIn();
+            mainRecord.setUserId(userId);
+            mainRecord.setDate(targetDate);
+            mainRecord.setBudgetCalorie(calculateDynamicBudget(userId));
+            mainRecord.setTotalCalorie(totalCalorieToAdd); // 直接赋总值
+            mainRecord.setBurnCalorie(0);
+            mainRecord.setCreateTime(java.time.LocalDateTime.now());
+
+            try {
+                checkInMapper.insert(mainRecord);
+            } catch (org.springframework.dao.DuplicateKeyException e) {
+                // 并发情况：查出来后被别人抢先插入了，则改为更新
+                mainRecord = checkInMapper.selectOne(query);
+                checkInMapper.atomicIncrementCalorie(mainRecord.getId(), totalCalorieToAdd);
+            }
+        } else {
+            // 已经有记录，累加这次购物车的总和
+            checkInMapper.atomicIncrementCalorie(mainRecord.getId(), totalCalorieToAdd);
+        }
+
+        // 3. 关联明细并插入数据库
+        Long checkInId = mainRecord.getId();
+        for (com.xw.entity.CheckInDetail detail : detailList) {
+            detail.setCheckInId(checkInId);
+            detailMapper.insert(detail);
+        }
+
+        // 4. 更新打卡统计状态
+        if (targetDate.equals(java.time.LocalDate.now())) {
+            updateCheckInStat(userId, targetDate);
+        }
+
+        return Result.success("打卡成功！共计摄入 " + totalCalorieToAdd + " 千卡");
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public Result<String> doExerciseCheckIn(ExerciseCheckInDTO dto) {
         if (dto.getUserId() == null || dto.getExerciseId() == null || dto.getDuration() == null) {
