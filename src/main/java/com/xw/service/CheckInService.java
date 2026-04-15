@@ -65,4 +65,11 @@ public interface CheckInService {
      */
     Result<CheckInStat> getCheckInStat(Long userId);
 
+    /**
+     * 获取指定日期的详细饮食分析数据
+     * @param userId 用户ID
+     * @param dateStr 日期 (yyyy-MM-dd)
+     */
+    Result<com.xw.vo.CheckInAnalysisVO> getDailyAnalysis(Long userId, String dateStr);
+
 }

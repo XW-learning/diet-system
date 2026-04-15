@@ -7,9 +7,6 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
-/**
- * @author XW
- */
 @Mapper
 public interface UserMapper extends BaseMapper<User> {
 
@@ -19,9 +16,9 @@ public interface UserMapper extends BaseMapper<User> {
      */
     @Select("""
         SELECT
-            u.id, u.phone, u.username, u.avatar, u.gender, u.age, u.email,
+            u.id, u.phone, u.username, u.avatar, u.gender, u.age, u.height, u.email,
             c.name AS categoryName,
-            b.height, b.weight, b.bmi, b.waist, b.hip,
+            b.weight, b.bmi, b.waist, b.hip, b.chest,
             t.target_weight AS targetWeight, t.target_date AS targetDate, t.goal_type AS goalType,
             p.taste, p.diet_type AS dietType
         FROM t_user u

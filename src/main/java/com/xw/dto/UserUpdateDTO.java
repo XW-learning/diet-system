@@ -2,6 +2,8 @@ package com.xw.dto;
 
 import lombok.Data;
 
+import java.math.BigDecimal;
+
 /**
  * 用户基础信息更新 DTO
  * @author XW
@@ -18,4 +20,5 @@ public class UserUpdateDTO {
     private Integer age;
     private String phone;
     private String email;
+    private BigDecimal height;
 }

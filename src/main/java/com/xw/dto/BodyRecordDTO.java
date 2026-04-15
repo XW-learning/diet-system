@@ -18,4 +18,5 @@ public class BodyRecordDTO {
     // 可选指标
     private BigDecimal waist;  // 腰围 (cm)
     private BigDecimal hip;    // 臀围 (cm)
+    private BigDecimal chest;
 }

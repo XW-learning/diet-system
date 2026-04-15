@@ -24,6 +24,7 @@ public class UserBodyRecord {
     private BigDecimal bmi;
     private BigDecimal waist;
     private BigDecimal hip;
+    private BigDecimal chest;
     private LocalDateTime recordTime;
     private LocalDateTime createTime;
 }

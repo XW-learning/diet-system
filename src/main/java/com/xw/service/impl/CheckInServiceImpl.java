@@ -403,4 +403,80 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
         if (isNew) statMapper.insert(stat);
         else statMapper.updateById(stat);
     }
+
+    @Override
+    public Result<com.xw.vo.CheckInAnalysisVO> getDailyAnalysis(Long userId, String dateStr) {
+        java.time.LocalDate targetDate = java.time.LocalDate.parse(dateStr);
+        com.xw.vo.CheckInAnalysisVO vo = new com.xw.vo.CheckInAnalysisVO();
+
+        // 1. 查主表获取基础热量
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.xw.entity.CheckIn> mainQuery = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+        mainQuery.eq(com.xw.entity.CheckIn::getUserId, userId).eq(com.xw.entity.CheckIn::getDate, targetDate);
+        com.xw.entity.CheckIn mainRecord = checkInMapper.selectOne(mainQuery);
+
+        int budget = 0;
+        if (mainRecord == null) {
+            // 今天还没打过卡，给默认空数据
+            budget = calculateDynamicBudget(userId); // 调用你之前写过的计算预算的方法
+            vo.setBudgetCalorie(budget);
+            vo.setIntakeCalorie(0);
+            vo.setBurnCalorie(0);
+            vo.setRemainCalorie(budget);
+            vo.setTotalCarbohydrate(java.math.BigDecimal.ZERO);
+            vo.setTotalProtein(java.math.BigDecimal.ZERO);
+            vo.setTotalFat(java.math.BigDecimal.ZERO);
+            vo.setBreakfastCalorie(0); vo.setLunchCalorie(0); vo.setDinnerCalorie(0); vo.setSnackCalorie(0);
+        } else {
+            budget = mainRecord.getBudgetCalorie() != null ? mainRecord.getBudgetCalorie() : calculateDynamicBudget(userId);
+            vo.setBudgetCalorie(budget);
+            vo.setIntakeCalorie(mainRecord.getTotalCalorie());
+            vo.setBurnCalorie(mainRecord.getBurnCalorie());
+            vo.setRemainCalorie(budget - mainRecord.getTotalCalorie() + mainRecord.getBurnCalorie());
+
+            // 2. 查明细表汇总营养素和各餐次热量
+            com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.xw.entity.CheckInDetail> detailQuery = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+            detailQuery.eq(com.xw.entity.CheckInDetail::getCheckInId, mainRecord.getId());
+            java.util.List<com.xw.entity.CheckInDetail> details = detailMapper.selectList(detailQuery);
+
+            java.math.BigDecimal totalCarb = java.math.BigDecimal.ZERO;
+            java.math.BigDecimal totalPro = java.math.BigDecimal.ZERO;
+            java.math.BigDecimal totalFat = java.math.BigDecimal.ZERO;
+            int bCal = 0, lCal = 0, dCal = 0, sCal = 0;
+
+            for (com.xw.entity.CheckInDetail detail : details) {
+                // 累加营养素
+                if (detail.getCarbohydrate() != null) totalCarb = totalCarb.add(detail.getCarbohydrate());
+                if (detail.getProtein() != null) totalPro = totalPro.add(detail.getProtein());
+                if (detail.getFat() != null) totalFat = totalFat.add(detail.getFat());
+
+                // 按餐次累加热量
+                if (detail.getMealType() != null && detail.getCalorie() != null) {
+                    switch (detail.getMealType()) {
+                        case 1: bCal += detail.getCalorie(); break;
+                        case 2: lCal += detail.getCalorie(); break;
+                        case 3: dCal += detail.getCalorie(); break;
+                        case 4: sCal += detail.getCalorie(); break;
+                    }
+                }
+            }
+
+            vo.setTotalCarbohydrate(totalCarb);
+            vo.setTotalProtein(totalPro);
+            vo.setTotalFat(totalFat);
+            vo.setBreakfastCalorie(bCal);
+            vo.setLunchCalorie(lCal);
+            vo.setDinnerCalorie(dCal);
+            vo.setSnackCalorie(sCal);
+        }
+
+        // 3. 核心算法：计算三大营养素推荐值
+        // 碳水(50%)：1g=4千卡 -> (预算 * 0.5) / 4
+        // 蛋白(20%)：1g=4千卡 -> (预算 * 0.2) / 4
+        // 脂肪(30%)：1g=9千卡 -> (预算 * 0.3) / 9
+        vo.setRecommendCarbohydrate(new java.math.BigDecimal(budget * 0.5 / 4).setScale(1, java.math.RoundingMode.HALF_UP));
+        vo.setRecommendProtein(new java.math.BigDecimal(budget * 0.2 / 4).setScale(1, java.math.RoundingMode.HALF_UP));
+        vo.setRecommendFat(new java.math.BigDecimal(budget * 0.3 / 9).setScale(1, java.math.RoundingMode.HALF_UP));
+
+        return Result.success(vo);
+    }
 }

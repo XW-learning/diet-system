@@ -6,6 +6,8 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Data;
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -24,6 +26,7 @@ public class User {
     private Integer status;   // 1-正常, 0-禁用
     private String avatar;
     private Integer age;
+    private BigDecimal height; // 🌟 新增字段
     private String email;
     private Long categoryId;
     private LocalDateTime createTime;

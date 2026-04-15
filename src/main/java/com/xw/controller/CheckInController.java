@@ -6,7 +6,6 @@ import com.xw.dto.MealCheckInDTO;
 import com.xw.entity.CheckIn;
 import com.xw.entity.CheckInStat;
 import com.xw.service.CheckInService;
-import com.xw.vo.AiDishVO;
 import com.xw.vo.CheckInDetailVO;
 import com.xw.vo.CheckInSummaryVO;
 import io.swagger.v3.oas.annotations.Operation;
@@ -14,7 +13,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -41,8 +39,7 @@ public class CheckInController {
     }
 
     @PostMapping("/meal")
-    public Result<String> doMealCheckIn(@RequestBody MealCheckInDTO dto, @RequestHeader("token") String token) {
-        // 🌟 修改点：删除 dto.setUserId(1L) 的硬编码逻辑
+    public Result<String> doMealCheckIn(@RequestBody MealCheckInDTO dto) {
         // 直接校验前端传入的 userId 是否有效
         if (dto.getUserId() == null) {
             return Result.error("打卡失败：用户ID缺失");
@@ -91,5 +88,13 @@ public class CheckInController {
     @GetMapping("/stat")
     public Result<CheckInStat> getCheckInStat(@RequestParam Long userId) {
         return checkInService.getCheckInStat(userId);
+    }
+
+    @Operation(summary = "3. 获取今日详细饮食分析(热量+营养素+三餐)")
+    @GetMapping("/analysis")
+    public Result<com.xw.vo.CheckInAnalysisVO> getDailyAnalysis(
+            @RequestParam("userId") Long userId,
+            @RequestParam("date") String date) {
+        return checkInService.getDailyAnalysis(userId, date);
     }
 }
