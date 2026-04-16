@@ -1,5 +1,6 @@
 package com.xw.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -9,16 +10,17 @@ import java.time.LocalDate;
  * @author XW
  */
 @Data
+@Schema(description = "用户目标设定请求参数")
 public class TargetDTO {
-    // 必传参数
+    @Schema(description = "用户ID", required = true)
     private Long userId;
 
-    // 目标体重 (kg)
+    @Schema(description = "目标体重(kg)", example = "60.0")
     private BigDecimal targetWeight;
 
-    // 目标达成日期 (如: 2026-12-31)
+    @Schema(description = "目标达成日期", example = "2026-12-31")
     private LocalDate targetDate;
 
-    // 目标类型（减肥/健身）
+    @Schema(description = "目标类型：减肥/健身", example = "减肥")
     private String goalType;
 }

@@ -1,29 +1,56 @@
 package com.xw.vo;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+
 import java.math.BigDecimal;
 
+/**
+ * 打卡数据分析视图对象
+ * @author XW
+ */
 @Data
+@Schema(description = "打卡数据分析视图对象")
 public class CheckInAnalysisVO {
-    // 1. 基础热量圈数据
-    private Integer budgetCalorie; // 预算
-    private Integer intakeCalorie; // 摄入
-    private Integer burnCalorie;   // 消耗(运动)
-    private Integer remainCalorie; // 剩余
+    @Schema(description = "今日预算热量")
+    private Integer budgetCalorie;
 
-    // 2. 三大营养素 - 实际摄入
+    @Schema(description = "今日饮食摄入总热量")
+    private Integer intakeCalorie;
+
+    @Schema(description = "今日运动消耗总热量")
+    private Integer burnCalorie;
+
+    @Schema(description = "剩余可吃热量（预算 - 饮食 + 运动）")
+    private Integer remainCalorie;
+
+    @Schema(description = "碳水化合物实际摄入量(g)")
     private BigDecimal totalCarbohydrate;
+
+    @Schema(description = "蛋白质实际摄入量(g)")
     private BigDecimal totalProtein;
+
+    @Schema(description = "脂肪实际摄入量(g)")
     private BigDecimal totalFat;
 
-    // 3. 三大营养素 - 推荐目标 (后端直接算好给前端)
+    @Schema(description = "碳水化合物推荐目标(g)")
     private BigDecimal recommendCarbohydrate;
+
+    @Schema(description = "蛋白质推荐目标(g)")
     private BigDecimal recommendProtein;
+
+    @Schema(description = "脂肪推荐目标(g)")
     private BigDecimal recommendFat;
 
-    // 4. 各餐次热量分布
-    private Integer breakfastCalorie; // 早餐
-    private Integer lunchCalorie;     // 午餐
-    private Integer dinnerCalorie;    // 晚餐
-    private Integer snackCalorie;     // 加餐
+    @Schema(description = "早餐热量")
+    private Integer breakfastCalorie;
+
+    @Schema(description = "午餐热量")
+    private Integer lunchCalorie;
+
+    @Schema(description = "晚餐热量")
+    private Integer dinnerCalorie;
+
+    @Schema(description = "加餐热量")
+    private Integer snackCalorie;
 }

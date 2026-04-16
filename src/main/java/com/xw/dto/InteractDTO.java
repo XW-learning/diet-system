@@ -1,10 +1,20 @@
 package com.xw.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
+/**
+ * @author XW
+ */
 @Data
+@Schema(description = "动态互动请求参数（点赞/取消点赞）")
 public class InteractDTO {
-    private Long userId;      // 操作人(当前登录用户)
-    private Long shareId;     // 被操作的动态ID
-    private Long authorId;    // 动态作者的ID (传过来是为了发通知用，省去后端再查一次)
+    @Schema(description = "操作人用户ID", required = true)
+    private Long userId;
+
+    @Schema(description = "被操作的动态ID", required = true)
+    private Long shareId;
+
+    @Schema(description = "动态作者ID（用于发送通知）", required = true)
+    private Long authorId;
 }

@@ -8,6 +8,7 @@ import com.xw.entity.CheckInStat;
 import com.xw.service.CheckInService;
 import com.xw.vo.CheckInDetailVO;
 import com.xw.vo.CheckInSummaryVO;
+import com.xw.vo.FitnessCalendarVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -96,5 +97,15 @@ public class CheckInController {
             @RequestParam("userId") Long userId,
             @RequestParam("date") String date) {
         return checkInService.getDailyAnalysis(userId, date);
+    }
+
+    @Operation(summary = "8. 获取健身日历专属聚合数据")
+    @GetMapping("/fitness/month")
+    public Result<FitnessCalendarVO> getFitnessCalendarData(
+            @RequestParam Long userId,
+            @RequestParam Integer year,
+            @RequestParam Integer month) {
+        // 这里的具体实现将交给 CheckInService
+        return checkInService.getFitnessCalendarData(userId, year, month);
     }
 }

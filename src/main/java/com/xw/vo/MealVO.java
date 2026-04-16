@@ -1,5 +1,6 @@
 package com.xw.vo;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 /**
@@ -7,14 +8,23 @@ import lombok.Data;
  * @author XW
  */
 @Data
+@Schema(description = "餐次菜品详情视图对象")
 public class MealVO {
-    // 餐次类型：1早餐 2午餐 3晚餐
+    @Schema(description = "餐次类型：1-早餐 2-午餐 3-晚餐 4-加餐")
     private Integer mealType;
 
-    // 菜品详情
+    @Schema(description = "菜品ID")
     private Long dishId;
+
+    @Schema(description = "菜品名称")
     private String dishName;
+
+    @Schema(description = "菜品描述")
     private String description;
+
+    @Schema(description = "卡路里(千卡)")
     private Integer calorie;
-    private String cookMethod; // 制作方法
+
+    @Schema(description = "烹饪方法")
+    private String cookMethod;
 }

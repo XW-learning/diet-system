@@ -8,6 +8,7 @@ import com.xw.entity.CheckInStat;
 import com.xw.vo.AiDishVO;
 import com.xw.vo.CheckInDetailVO;
 import com.xw.vo.CheckInSummaryVO;
+import com.xw.vo.FitnessCalendarVO;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
@@ -72,4 +73,8 @@ public interface CheckInService {
      */
     Result<com.xw.vo.CheckInAnalysisVO> getDailyAnalysis(Long userId, String dateStr);
 
+    /**
+     * 获取健身日历专属聚合数据
+     */
+    Result<FitnessCalendarVO> getFitnessCalendarData(Long userId, Integer year, Integer month);
 }

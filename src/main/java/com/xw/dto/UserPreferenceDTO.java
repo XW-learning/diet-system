@@ -1,5 +1,6 @@
 package com.xw.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 /**
@@ -7,13 +8,14 @@ import lombok.Data;
  * @author XW
  */
 @Data
+@Schema(description = "用户饮食偏好请求参数")
 public class UserPreferenceDTO {
-    // 必传参数：当前用户的 ID
+    @Schema(description = "用户ID", required = true)
     private Long userId;
 
-    // 口味偏好（例如：少油少盐、无忌口等）
+    @Schema(description = "口味偏好", example = "少油少盐")
     private String taste;
 
-    // 饮食类型（例如：低碳水饮食、高蛋白饮食等）
+    @Schema(description = "饮食类型", example = "低碳水饮食")
     private String dietType;
 }

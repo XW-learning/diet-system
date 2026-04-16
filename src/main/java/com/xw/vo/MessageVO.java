@@ -11,14 +11,19 @@ import java.time.LocalDateTime;
 @Data
 @Schema(description = "消息通知展示对象")
 public class MessageVO {
-
+    @Schema(description = "消息ID")
     private Long id;
+
+    @Schema(description = "接收者ID")
     private Long receiverId;
+
+    @Schema(description = "发送者ID")
     private Long senderId;
 
     // 🌟 数据聚合：发送者的昵称和头像
     @Schema(description = "发送者昵称 (系统通知时为 '系统管理员')")
     private String senderName;
+
     @Schema(description = "发送者头像")
     private String senderAvatar;
 

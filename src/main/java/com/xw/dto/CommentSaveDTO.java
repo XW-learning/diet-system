@@ -1,15 +1,29 @@
 package com.xw.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
+/**
+ * @author XW
+ */
 @Data
+@Schema(description = "保存评论请求参数")
 public class CommentSaveDTO {
-    private Long userId;      // 评论人(当前用户)
-    private Long shareId;     // 动态ID
-    private Long authorId;    // 动态作者ID (用来发通知)
-    private String content;   // 评论内容
+    @Schema(description = "评论人用户ID", required = true)
+    private Long userId;
 
-    // 如果是回复别人的评论，需要传下面两个字段；如果是直接评论动态，传 null
-    private Long parentId;    // 盖楼的父评论ID
-    private Long replyUserId; // 被回复的那个人的ID
+    @Schema(description = "动态ID", required = true)
+    private Long shareId;
+
+    @Schema(description = "动态作者ID（用于发送通知）", required = true)
+    private Long authorId;
+
+    @Schema(description = "评论内容", required = true, example = "这个看起来很好吃！")
+    private String content;
+
+    @Schema(description = "父评论ID（回复评论时传入）")
+    private Long parentId;
+
+    @Schema(description = "被回复的用户ID")
+    private Long replyUserId;
 }

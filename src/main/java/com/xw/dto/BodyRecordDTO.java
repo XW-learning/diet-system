@@ -1,5 +1,6 @@
 package com.xw.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import java.math.BigDecimal;
 
@@ -8,15 +9,23 @@ import java.math.BigDecimal;
  * @author XW
  */
 @Data
+@Schema(description = "身体数据记录请求参数")
 public class BodyRecordDTO {
+    @Schema(description = "用户ID", required = true)
     private Long userId;
 
-    // 必须传的两个核心指标
-    private BigDecimal height; // 身高 (cm)
-    private BigDecimal weight; // 体重 (kg)
+    @Schema(description = "身高(cm)", required = true, example = "175.5")
+    private BigDecimal height;
 
-    // 可选指标
-    private BigDecimal waist;  // 腰围 (cm)
-    private BigDecimal hip;    // 臀围 (cm)
+    @Schema(description = "体重(kg)", required = true, example = "65.0")
+    private BigDecimal weight;
+
+    @Schema(description = "腰围(cm)", example = "80.0")
+    private BigDecimal waist;
+
+    @Schema(description = "臀围(cm)", example = "95.0")
+    private BigDecimal hip;
+
+    @Schema(description = "胸围(cm)", example = "90.0")
     private BigDecimal chest;
 }

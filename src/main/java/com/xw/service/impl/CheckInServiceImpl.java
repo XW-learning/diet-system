@@ -3,6 +3,7 @@ package com.xw.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.xw.common.Result;
+import com.xw.dto.ExerciseCalendarDTO;
 import com.xw.dto.ExerciseCheckInDTO;
 import com.xw.dto.MealCheckInDTO;
 import com.xw.entity.*;
@@ -10,6 +11,7 @@ import com.xw.mapper.*;
 import com.xw.service.CheckInService;
 import com.xw.vo.CheckInDetailVO;
 import com.xw.vo.CheckInSummaryVO;
+import com.xw.vo.FitnessCalendarVO;
 import com.xw.vo.MealVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -20,8 +22,8 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * 打卡业务实现类
@@ -46,6 +48,9 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
     private ExerciseMapper exerciseMapper;
     @Autowired
     private CheckInStatMapper statMapper;
+
+    @Autowired
+    private CheckInStatMapper checkInStatMapper;
 
     @Override
     public Result<CheckInSummaryVO> getSummary(Long userId, LocalDate date) {
@@ -476,6 +481,81 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
         vo.setRecommendCarbohydrate(new java.math.BigDecimal(budget * 0.5 / 4).setScale(1, java.math.RoundingMode.HALF_UP));
         vo.setRecommendProtein(new java.math.BigDecimal(budget * 0.2 / 4).setScale(1, java.math.RoundingMode.HALF_UP));
         vo.setRecommendFat(new java.math.BigDecimal(budget * 0.3 / 9).setScale(1, java.math.RoundingMode.HALF_UP));
+
+        return Result.success(vo);
+    }
+
+    @Override
+    public Result<FitnessCalendarVO> getFitnessCalendarData(Long userId, Integer year, Integer month) {
+        FitnessCalendarVO vo = new FitnessCalendarVO();
+
+        // 1. 获取连胜天数
+        LambdaQueryWrapper<CheckInStat> statWrapper = new LambdaQueryWrapper<>();
+        statWrapper.eq(CheckInStat::getUserId, userId);
+        CheckInStat stat = checkInStatMapper.selectOne(statWrapper);
+        vo.setContinuousDays(stat != null && stat.getContinuousDays() != null ? stat.getContinuousDays() : 0);
+
+        // 2. 从数据库一次性取出当月所有的运动明细
+        List<ExerciseCalendarDTO> records = exerciseRecordMapper.selectMonthlyExerciseRecords(userId, year, month);
+
+        if (records == null || records.isEmpty()) {
+            vo.setTotalWorkoutDays(0);
+            vo.setTotalDuration(0);
+            vo.setTotalBurnCalorie(0);
+            vo.setDailyData(new HashMap<>());
+            vo.setTop5Workouts(new ArrayList<>());
+            return Result.success(vo);
+        }
+
+        // 3. 在 Java 内存中进行数据聚合 (高效处理)
+        int totalDuration = 0;
+        int totalCalories = 0;
+        Set<LocalDate> workoutDays = new HashSet<>(); // 利用 Set 去重，计算运动了多少天
+
+        Map<String, FitnessCalendarVO.DailyFitnessVO> dailyMap = new HashMap<>();
+        Map<String, Integer> exerciseDurationMap = new HashMap<>();
+
+        for (ExerciseCalendarDTO record : records) {
+            int duration = record.getDuration() != null ? record.getDuration() : 0;
+            int calories = record.getBurnCalorie() != null ? record.getBurnCalorie() : 0;
+
+            // 3.1 累加总计
+            totalDuration += duration;
+            totalCalories += calories;
+            workoutDays.add(record.getRecordDate());
+
+            // 3.2 聚合每日数据 (网格胶囊使用)
+            String dateStr = record.getRecordDate().toString(); // 格式 "2026-04-16"
+            FitnessCalendarVO.DailyFitnessVO dailyVO = dailyMap.getOrDefault(dateStr, new FitnessCalendarVO.DailyFitnessVO());
+            dailyVO.setDuration((dailyVO.getDuration() == null ? 0 : dailyVO.getDuration()) + duration);
+            dailyVO.setCalories((dailyVO.getCalories() == null ? 0 : dailyVO.getCalories()) + calories);
+            dailyMap.put(dateStr, dailyVO);
+
+            // 3.3 聚合各项运动的总时长 (Top5 排行榜使用)
+            String exName = record.getExerciseName();
+            if (exName != null && !exName.trim().isEmpty()) {
+                exerciseDurationMap.put(exName, exerciseDurationMap.getOrDefault(exName, 0) + duration);
+            }
+        }
+
+        vo.setTotalWorkoutDays(workoutDays.size());
+        vo.setTotalDuration(totalDuration);
+        vo.setTotalBurnCalorie(totalCalories);
+        vo.setDailyData(dailyMap);
+
+        // 4. 计算 Top 5 排行榜 (使用 Stream API 降序排序并截取前 5)
+        List<FitnessCalendarVO.WorkoutRankVO> top5 = exerciseDurationMap.entrySet().stream()
+                .map(entry -> {
+                    FitnessCalendarVO.WorkoutRankVO rankVO = new FitnessCalendarVO.WorkoutRankVO();
+                    rankVO.setName(entry.getKey());
+                    rankVO.setDuration(entry.getValue());
+                    return rankVO;
+                })
+                .sorted((a, b) -> b.getDuration().compareTo(a.getDuration())) // 按照时长降序
+                .limit(5)
+                .collect(Collectors.toList());
+
+        vo.setTop5Workouts(top5);
 
         return Result.success(vo);
     }
