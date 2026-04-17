@@ -5,10 +5,7 @@ import com.xw.dto.ExerciseCheckInDTO;
 import com.xw.dto.MealCheckInDTO;
 import com.xw.entity.CheckIn;
 import com.xw.entity.CheckInStat;
-import com.xw.vo.AiDishVO;
-import com.xw.vo.CheckInDetailVO;
-import com.xw.vo.CheckInSummaryVO;
-import com.xw.vo.FitnessCalendarVO;
+import com.xw.vo.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
@@ -77,4 +74,7 @@ public interface CheckInService {
      * 获取健身日历专属聚合数据
      */
     Result<FitnessCalendarVO> getFitnessCalendarData(Long userId, Integer year, Integer month);
+
+    // 请记得引入 FatLossCalendarVO
+    Result<FatLossCalendarVO> getFatLossCalendarData(Long userId, Integer year, Integer month);
 }

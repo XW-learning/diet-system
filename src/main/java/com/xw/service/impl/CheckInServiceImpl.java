@@ -9,10 +9,7 @@ import com.xw.dto.MealCheckInDTO;
 import com.xw.entity.*;
 import com.xw.mapper.*;
 import com.xw.service.CheckInService;
-import com.xw.vo.CheckInDetailVO;
-import com.xw.vo.CheckInSummaryVO;
-import com.xw.vo.FitnessCalendarVO;
-import com.xw.vo.MealVO;
+import com.xw.vo.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,6 +48,9 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
 
     @Autowired
     private CheckInStatMapper checkInStatMapper;
+
+    @Autowired
+    private UserWaterRecordMapper userWaterRecordMapper; // 注入饮水Mapper
 
     @Override
     public Result<CheckInSummaryVO> getSummary(Long userId, LocalDate date) {
@@ -557,6 +557,84 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
 
         vo.setTop5Workouts(top5);
 
+        return Result.success(vo);
+    }
+
+    @Override
+    public Result<FatLossCalendarVO> getFatLossCalendarData(Long userId, Integer year, Integer month) {
+        FatLossCalendarVO vo = new FatLossCalendarVO();
+        Map<String, FatLossCalendarVO.DailyFatLossVO> dailyMap = new HashMap<>();
+
+        // 1. 计算当月的起止时间
+        YearMonth yearMonth = YearMonth.of(year, month);
+        LocalDate startDate = yearMonth.atDay(1);
+        LocalDate endDate = yearMonth.atEndOfMonth();
+
+        // 2. 批量查询当月数据 (杜绝 For 循环查库)
+
+        // 2.1 查饮食热量 (t_check_in)
+        LambdaQueryWrapper<CheckIn> checkInWrapper = new LambdaQueryWrapper<>();
+        checkInWrapper.eq(CheckIn::getUserId, userId)
+                .between(CheckIn::getDate, startDate, endDate);
+        List<CheckIn> checkIns = checkInMapper.selectList(checkInWrapper);
+
+        // 2.2 查体重记录 (t_user_body_record)
+        // 假设 record_time 是 LocalDateTime 类型
+        LambdaQueryWrapper<UserBodyRecord> bodyWrapper = new LambdaQueryWrapper<>();
+        bodyWrapper.eq(UserBodyRecord::getUserId, userId)
+                .ge(UserBodyRecord::getRecordTime, startDate.atStartOfDay())
+                .le(UserBodyRecord::getRecordTime, endDate.atTime(23, 59, 59));
+        List<UserBodyRecord> bodyRecords = bodyRecordMapper.selectList(bodyWrapper);
+
+        // 2.3 查饮水记录 (t_user_water_record)
+        LambdaQueryWrapper<UserWaterRecord> waterWrapper = new LambdaQueryWrapper<>();
+        waterWrapper.eq(UserWaterRecord::getUserId, userId)
+                .between(UserWaterRecord::getRecordDate, startDate, endDate); // 假设字段名叫 recordDate
+        List<UserWaterRecord> waterRecords = userWaterRecordMapper.selectList(waterWrapper);
+
+        // 3. 在 Java 内存中进行数据拼装 (极速组合)
+
+        // 3.1 拼装热量数据
+        for (CheckIn checkIn : checkIns) {
+            String dateStr = checkIn.getDate().toString();
+            FatLossCalendarVO.DailyFatLossVO daily = dailyMap.computeIfAbsent(dateStr, k -> new FatLossCalendarVO.DailyFatLossVO());
+
+            int intake = checkIn.getTotalCalorie() != null ? checkIn.getTotalCalorie() : 0;
+            int burn = checkIn.getBurnCalorie() != null ? checkIn.getBurnCalorie() : 0;
+            int budget = checkIn.getBudgetCalorie() != null ? checkIn.getBudgetCalorie() : 0;
+
+            daily.setIntakeCalorie(intake > 0 ? intake : null);
+
+            // 计算热量缺口：缺口 = 预算 + 消耗 - 摄入
+            // 如果当天没有吃东西(摄入为0)，缺口计算没有意义，可根据业务逻辑调整
+            if (intake > 0) {
+                int deficit = budget + burn - intake;
+                daily.setDeficitCalorie(deficit > 0 ? deficit : 0); // 缺口大于0才算缺口
+            }
+        }
+
+        // 3.2 拼装体重数据
+        for (UserBodyRecord body : bodyRecords) {
+            if (body.getWeight() != null) {
+                String dateStr = body.getRecordTime().toLocalDate().toString();
+                FatLossCalendarVO.DailyFatLossVO daily = dailyMap.computeIfAbsent(dateStr, k -> new FatLossCalendarVO.DailyFatLossVO());
+                // 如果一天记了多次体重，这里会保留最后遍历到的那个（也可以自己写逻辑求平均值）
+                daily.setWeight(body.getWeight());
+            }
+        }
+
+        // 3.3 拼装饮水数据
+        for (UserWaterRecord water : waterRecords) {
+            String dateStr = water.getRecordDate().toString(); // 假设叫 recordDate
+            FatLossCalendarVO.DailyFatLossVO daily = dailyMap.computeIfAbsent(dateStr, k -> new FatLossCalendarVO.DailyFatLossVO());
+            // 只要当天有记录，就点亮饮水图标
+            daily.setHasWater(true);
+        }
+
+        // 3.4 经期数据 (待补充)
+        // TODO: 确认经期数据存在哪张表，然后像上面一样查出 List 并在内存里 for 循环拼装到 daily.setIsPeriod(true) 中
+
+        vo.setDailyData(dailyMap);
         return Result.success(vo);
     }
 }

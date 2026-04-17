@@ -8,6 +8,7 @@ import com.xw.entity.CheckInStat;
 import com.xw.service.CheckInService;
 import com.xw.vo.CheckInDetailVO;
 import com.xw.vo.CheckInSummaryVO;
+import com.xw.vo.FatLossCalendarVO;
 import com.xw.vo.FitnessCalendarVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -107,5 +108,16 @@ public class CheckInController {
             @RequestParam Integer month) {
         // 这里的具体实现将交给 CheckInService
         return checkInService.getFitnessCalendarData(userId, year, month);
+    }
+
+    /**
+     * 获取减脂日历数据
+     */
+    @GetMapping("/fatLoss/month")
+    public Result<FatLossCalendarVO> getFatLossCalendarData(
+            @RequestParam Long userId,
+            @RequestParam Integer year,
+            @RequestParam Integer month) {
+        return checkInService.getFatLossCalendarData(userId, year, month);
     }
 }

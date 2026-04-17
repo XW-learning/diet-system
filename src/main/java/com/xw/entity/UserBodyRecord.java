@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -25,6 +26,10 @@ public class UserBodyRecord {
     private BigDecimal waist;
     private BigDecimal hip;
     private BigDecimal chest;
+    @TableField("period_start_date")
+    private LocalDate periodStartDate;
+    @TableField("period_end_date")
+    private LocalDate periodEndDate;
     private LocalDateTime recordTime;
     private LocalDateTime createTime;
 }
