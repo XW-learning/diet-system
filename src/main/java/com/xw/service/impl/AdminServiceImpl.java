@@ -17,6 +17,7 @@ import com.xw.common.PageResult;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
@@ -69,6 +70,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Result<String> updatePassword(AdminUpdatePasswordDTO dto) {
         if (dto.getId() == null) return Result.error("管理员ID不能为空");
 
@@ -133,6 +135,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Result<String> updateUserStatus(Long userId, Integer status) {
         if (userId == null) {
             return Result.error("用户ID不能为空");
@@ -157,6 +160,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Result<String> deleteUser(Long userId) {
         if (userId == null) {
             return Result.error("用户ID不能为空");

@@ -10,8 +10,6 @@ import lombok.Data;
 @Data
 @Schema(description = "用户饮食偏好请求参数")
 public class UserPreferenceDTO {
-    @Schema(description = "用户ID", required = true)
-    private Long userId;
 
     @Schema(description = "口味偏好", example = "少油少盐")
     private String taste;

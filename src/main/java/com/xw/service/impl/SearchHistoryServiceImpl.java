@@ -5,6 +5,7 @@ import com.xw.entity.SearchHistory;
 import com.xw.mapper.SearchHistoryMapper;
 import com.xw.service.SearchHistoryService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
@@ -15,6 +16,7 @@ import java.time.LocalDateTime;
 public class SearchHistoryServiceImpl extends ServiceImpl<SearchHistoryMapper, SearchHistory> implements SearchHistoryService {
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void saveOrUpdateHistory(Long userId, String keyword) {
         if (keyword == null || keyword.trim().isEmpty()) {
             return;

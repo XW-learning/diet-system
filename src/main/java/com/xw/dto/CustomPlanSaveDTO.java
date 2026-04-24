@@ -10,9 +10,6 @@ import lombok.Data;
 @Schema(description = "保存自定义方案请求参数")
 public class CustomPlanSaveDTO {
 
-    @Schema(description = "用户ID", required = true)
-    private Long userId;
-
     @Schema(description = "基础方案ID（从哪个模板修改来的，可为空）")
     private Long basePlanId;
 

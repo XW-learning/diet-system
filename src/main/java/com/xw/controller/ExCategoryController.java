@@ -1,9 +1,11 @@
 package com.xw.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.xw.annotation.LogOperation;
 import com.xw.common.Result;
 import com.xw.entity.ExCategory;
 import com.xw.service.ExCategoryService;
+import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,6 +23,8 @@ public class ExCategoryController {
     @Autowired
     private ExCategoryService exCategoryService; // 注入的是 ExCategory 的 Service
 
+    @Operation(summary = "获取运动分类列表")
+    @LogOperation("获取运动分类列表")
     @GetMapping("/list")
     public Result<List<ExCategory>> list() {
         LambdaQueryWrapper<ExCategory> queryWrapper = new LambdaQueryWrapper<>();

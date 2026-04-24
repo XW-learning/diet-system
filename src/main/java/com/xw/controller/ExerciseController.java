@@ -1,9 +1,11 @@
 package com.xw.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.xw.annotation.LogOperation;
 import com.xw.common.Result;
 import com.xw.entity.Exercise;
 import com.xw.mapper.ExerciseMapper;
+import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,19 +17,17 @@ import java.util.List;
 
 /**
  * 运动项目接口 (用于右侧列表)
+ *
+ * @author XW
  */
 @RestController
 @RequestMapping("/api/exercise")
 public class ExerciseController {
 
     @Autowired
-    private ExerciseMapper exerciseMapper; // 注入的是 Exercise 的 Mapper
+    private ExerciseMapper exerciseMapper;
 
-    /**
-     * 根据条件查询运动列表
-     * @param categoryId 分类ID (可选)
-     * @param keyword 搜索关键词 (可选)
-     */
+    @Operation(summary = "动态查询运行列表")
     @GetMapping("/list")
     public Result<List<Exercise>> list(
             @RequestParam(required = false) Integer categoryId,

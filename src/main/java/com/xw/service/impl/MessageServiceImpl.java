@@ -15,6 +15,9 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * @author XW
+ */
 @Service
 public class MessageServiceImpl implements MessageService {
 
@@ -29,7 +32,8 @@ public class MessageServiceImpl implements MessageService {
         // 利用我们在 SQL 里建的 idx_receiver_read 复合索引，这里的 COUNT 查询极快
         LambdaQueryWrapper<Message> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Message::getReceiverId, userId)
-                .eq(Message::getIsRead, 0); // 0 为未读
+                // 0 为未读
+                .eq(Message::getIsRead, 0);
         Long count = messageMapper.selectCount(wrapper);
         return Result.success(count);
     }

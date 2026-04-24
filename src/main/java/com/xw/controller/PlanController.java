@@ -1,10 +1,12 @@
 package com.xw.controller;
 
+import com.xw.annotation.LogOperation;
 import com.xw.common.Result;
 import com.xw.dto.PlanFavoriteDTO;
 import com.xw.dto.PlanSearchDTO;
 import com.xw.entity.Plan;
 import com.xw.service.PlanService;
+import com.xw.utils.ThreadLocalUtil;
 import com.xw.vo.PlanDetailVO;
 import com.xw.vo.PlanVO;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,14 +30,17 @@ public class PlanController {
     @Operation(summary = "获取推荐方案列表")
     @GetMapping("/recommend") // 你的新路径
     // 🌟 这里的返回值必须改成 List
-    public Result<List<Plan>> getRecommendPlan(@RequestParam Long userId) {
-        return planService.getRecommendPlan(userId);
+    public Result<List<Plan>> getRecommendPlan() {
+        Long currentUserId = ThreadLocalUtil.getCurrentUserId();
+        return planService.getRecommendPlan(currentUserId);
     }
 
     @Operation(summary = "更换方案(随机刷新)")
+    @LogOperation("更换方案")
     @PostMapping("/refresh")
-    public Result<List<Plan>> refreshPlan(@RequestParam Long userId) {
-        return planService.refreshPlan(userId);
+    public Result<List<Plan>> refreshPlan() {
+        Long currentUserId = ThreadLocalUtil.getCurrentUserId();
+        return planService.refreshPlan(currentUserId);
     }
 
     @Operation(summary = "方案详情(含菜谱)")
@@ -45,15 +50,18 @@ public class PlanController {
     }
 
     @Operation(summary = "收藏/取消收藏方案")
+    @LogOperation("收藏/取消收藏方案")
     @PostMapping("/favorite")
     public Result<String> favoritePlan(@RequestBody PlanFavoriteDTO dto) {
-        return planService.favoritePlan(dto);
+        Long currentUserId = ThreadLocalUtil.getCurrentUserId();
+        return planService.favoritePlan(currentUserId, dto);
     }
 
     @Operation(summary = "收藏列表")
     @GetMapping("/favorites")
-    public Result<java.util.List<Plan>> getFavoritePlans(@RequestParam Long userId) {
-        return planService.getFavoritePlans(userId);
+    public Result<List<Plan>> getFavoritePlans() {
+        Long currentUserId = ThreadLocalUtil.getCurrentUserId();
+        return planService.getFavoritePlans(currentUserId);
     }
 
     @Operation(summary = "搜索饮食方案 (一框多搜)")
@@ -64,7 +72,8 @@ public class PlanController {
 
     @Operation(summary = "获取我的专属定制方案列表")
     @GetMapping("/custom/list")
-    public Result<List<com.xw.entity.UserCustomPlan>> getCustomPlans(@RequestParam Long userId) {
-        return planService.getCustomPlans(userId);
+    public Result<List<com.xw.entity.UserCustomPlan>> getCustomPlans() {
+        Long currentUserId = ThreadLocalUtil.getCurrentUserId();
+        return planService.getCustomPlans(currentUserId);
     }
 }

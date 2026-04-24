@@ -1,6 +1,8 @@
 package com.xw.controller; // 替换为你的实际包名
 
+import com.xw.annotation.LogOperation;
 import com.xw.common.Result; // 替换为你实际的 Result 路径
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,6 +22,8 @@ public class FileController {
     // 获取当前项目运行的根目录，并在其下创建一个 uploads 文件夹用来存图片
     private static final String UPLOAD_DIR = System.getProperty("user.dir") + "/uploads/";
 
+    @Operation(summary = "上传文件")
+    @LogOperation("上传文件")
     @PostMapping
     public Result<String> upload(@RequestParam("file") MultipartFile file, HttpServletRequest request) {
         System.out.println("接收到文件上传请求");

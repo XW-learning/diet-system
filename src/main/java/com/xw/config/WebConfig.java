@@ -1,6 +1,9 @@
 package com.xw.config;
 
+import com.xw.interceptor.LoginInterceptor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -11,12 +14,29 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
+    @Autowired
+    private LoginInterceptor loginInterceptor;
+
+    // 注册拦截器
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(loginInterceptor)
+                .addPathPatterns("/api/**") // 拦截所有 /api 下的请求
+                .excludePathPatterns(       // 排除不需要登录的接口
+                        "/api/auth/login",
+                        "/api/auth/register",
+                        "/api/auth/resetPassword",
+                        "/api/admin/login",
+                        // 排除 Swagger 接口文档路径
+                        "/swagger-ui/**",
+                        "/v3/api-docs/**"
+                );
+    }
+
+    // 静态资源映射 (保留你原有的代码)
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // 获取我们在代码里定义的根目录物理路径
         String uploadPath = System.getProperty("user.dir") + "/uploads/";
-
-        // 将网络请求路径 /uploads/** 映射到本地硬盘的绝对路径下
         registry.addResourceHandler("/uploads/**")
                 .addResourceLocations("file:" + uploadPath);
     }

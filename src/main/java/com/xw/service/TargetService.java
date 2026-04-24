@@ -13,7 +13,7 @@ public interface TargetService {
     /**
      * 保存或更新用户目标
      */
-    Result<String> saveTarget(TargetDTO dto);
+    Result<String> saveTarget(Long userId, TargetDTO dto);
 
     /**
      * 删除用户目标 (清除目标)

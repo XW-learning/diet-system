@@ -1,5 +1,6 @@
 package com.xw.controller;
 
+import com.xw.annotation.LogOperation;
 import com.xw.common.Result;
 import com.xw.dto.AdminLoginDTO;
 import com.xw.dto.AdminUpdatePasswordDTO;
@@ -25,6 +26,7 @@ public class AdminController {
     private AdminService adminService;
 
     @Operation(summary = "40. 管理员登录")
+    @LogOperation("管理员登录")
     @PostMapping("/login")
     public Result<String> login(@RequestBody AdminLoginDTO dto) {
         return adminService.login(dto);
@@ -37,6 +39,7 @@ public class AdminController {
     }
 
     @Operation(summary = "42. 修改密码")
+    @LogOperation("修改密码")
     @PutMapping("/password")
     public Result<String> updatePassword(@RequestBody AdminUpdatePasswordDTO dto) {
         return adminService.updatePassword(dto);
@@ -55,12 +58,14 @@ public class AdminController {
     }
 
     @Operation(summary = "45. 禁用/启用用户")
+    @LogOperation("禁用/启用用户")
     @PutMapping("/user/status")
     public Result<String> updateUserStatus(@RequestParam Long userId, @RequestParam Integer status) {
         return adminService.updateUserStatus(userId, status);
     }
 
     @Operation(summary = "46. 删除用户")
+    @LogOperation("删除用户")
     @DeleteMapping("/user/delete")
     public Result<String> deleteUser(@RequestParam Long userId) {
         return adminService.deleteUser(userId);

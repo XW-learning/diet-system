@@ -1,11 +1,13 @@
 package com.xw.controller;
 
+import com.xw.annotation.LogOperation;
 import com.xw.common.Result;
 import com.xw.dto.CustomPlanSaveDTO;
 import com.xw.dto.DishReplaceDTO;
 import com.xw.entity.Dish;
 import com.xw.service.DishService;
 import com.xw.service.SearchHistoryService;
+import com.xw.utils.ThreadLocalUtil;
 import com.xw.vo.DishVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -47,14 +49,18 @@ public class DishController {
     }
 
     @Operation(summary = "试替换菜品 (含过敏原自动校验)")
+    @LogOperation("试替换菜品")
     @PostMapping("/replace")
     public Result<DishVO> replaceDish(@RequestBody DishReplaceDTO dto) {
-        return dishService.replaceDish(dto);
+        Long userId = ThreadLocalUtil.getCurrentUserId();
+        return dishService.replaceDish(userId, dto);
     }
 
     @Operation(summary = "确认保存为专属方案")
+    @LogOperation("确认保存为专属方案")
     @PostMapping("/custom/save")
     public Result<String> saveCustomPlan(@RequestBody CustomPlanSaveDTO dto) {
-        return dishService.saveCustomPlan(dto);
+        Long userId = ThreadLocalUtil.getCurrentUserId();
+        return dishService.saveCustomPlan(userId, dto);
     }
 }

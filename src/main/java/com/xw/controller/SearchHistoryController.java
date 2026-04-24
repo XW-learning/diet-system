@@ -1,8 +1,10 @@
 package com.xw.controller;
 
+import com.xw.annotation.LogOperation;
 import com.xw.common.Result;
 import com.xw.entity.SearchHistory;
 import com.xw.service.SearchHistoryService;
+import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,7 +20,8 @@ public class SearchHistoryController {
     @Autowired
     private SearchHistoryService searchHistoryService;
 
-    // 获取当前用户的搜索历史（取最近10条）
+    @Operation(summary = "获取当前用户的搜索历史10条")
+    @LogOperation("获取当前用户的搜索历史")
     @GetMapping("/list")
     public Result getHistory(@RequestHeader("token") String token) {
         // 伪代码：根据token获取userId
@@ -31,7 +34,8 @@ public class SearchHistoryController {
         return Result.success(list);
     }
 
-    // 清空当前用户的所有历史
+    @Operation(summary = "清空当前用户的所有历史")
+    @LogOperation("清空当前用户的所有历史")
     @DeleteMapping("/clear")
     public Result clearHistory(@RequestHeader("token") String token) {
         Long userId = 1L;

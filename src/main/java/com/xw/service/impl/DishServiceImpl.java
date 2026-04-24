@@ -28,11 +28,9 @@ import java.util.stream.Collectors;
 @Service
 public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements DishService {
 
-    // 菜品相关 Mapper
     @Autowired
     private DishMapper dishMapper;
 
-    // 自定义方案相关 Mapper
     @Autowired
     private UserCustomPlanMapper customPlanMapper;
 
@@ -53,35 +51,47 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
 
     @Override
     public List<DishVO> searchDish(String keyword) {
-        // 1. 使用 MyBatis-Plus 构建查询条件
         List<Dish> dishes = this.lambdaQuery()
-                // 如果 keyword 不为空，则进行模糊查询；如果为空，则查询所有
                 .like(keyword != null && !keyword.trim().isEmpty(), Dish::getName, keyword)
                 .list();
 
-        // 2. 将查出来的 Dish 实体类转换为返回给前端的 DishVO
         return dishes.stream().map(dish -> {
             DishVO vo = new DishVO();
-            // BeanUtils 会自动把同名的属性（包含热量、碳水、蛋白质等）拷贝过去
             BeanUtils.copyProperties(dish, vo);
             return vo;
         }).collect(Collectors.toList());
     }
 
     @Override
-    public Result<DishVO> replaceDish(DishReplaceDTO dto) {
-        if (dto.getUserId() == null || dto.getNewDishId() == null) {
+    public List<DishVO> searchDish(String keyword, Integer categoryId) {
+        List<Dish> dishes = this.lambdaQuery()
+                .like(keyword != null && !keyword.trim().isEmpty(), Dish::getName, keyword)
+                .eq(categoryId != null, Dish::getCategoryId, categoryId)
+                .list();
+
+        return dishes.stream().map(dish -> {
+            DishVO vo = new DishVO();
+            BeanUtils.copyProperties(dish, vo);
+            return vo;
+        }).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Result<DishVO> replaceDish(Long userId, DishReplaceDTO dto) { // 🌟 接收上下文 userId
+        // 1. 移除对 dto.getUserId() 的空指针校验
+        if (dto.getNewDishId() == null) {
             return Result.error("缺少必要参数");
         }
 
-        // 1. 核心安全防护：过敏原智能检测
-        List<String> conflictMaterials = dishMapper.checkAllergyConflict(dto.getUserId(), dto.getNewDishId());
+        // 2. 核心安全防护：过敏原智能检测 (🌟 使用绝对安全的 userId)
+        List<String> conflictMaterials = dishMapper.checkAllergyConflict(userId, dto.getNewDishId());
         if (conflictMaterials != null && !conflictMaterials.isEmpty()) {
             String materials = String.join("、", conflictMaterials);
             return Result.error("替换失败！该菜品含有您的过敏食材：" + materials + "，为了您的健康，请重新选择。");
         }
 
-        // 2. 获取新菜品的完整详情（带营养素）
+        // 3. 获取新菜品的完整详情（带营养素）
         DishVO newDishInfo = dishMapper.getDishDetailWithNutrition(dto.getNewDishId());
 
         if (newDishInfo == null) {
@@ -92,11 +102,11 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class) // 🌟 保证主从表同时成功或同时回滚
-    public Result<String> saveCustomPlan(CustomPlanSaveDTO dto) {
-        // 1. 基础参数校验
-        if (dto.getUserId() == null || dto.getName() == null || dto.getName().trim().isEmpty()) {
-            return Result.error("方案名称和用户ID不能为空");
+    @Transactional(rollbackFor = Exception.class)
+    public Result<String> saveCustomPlan(Long userId, CustomPlanSaveDTO dto) { // 🌟 接收上下文 userId
+        // 1. 基础参数校验 (移除对 dto.getUserId() 的强依赖)
+        if (dto.getName() == null || dto.getName().trim().isEmpty()) {
+            return Result.error("方案名称不能为空");
         }
         if (dto.getBreakfastDishId() == null || dto.getLunchDishId() == null || dto.getDinnerDishId() == null) {
             return Result.error("必须完整配置一日三餐才能保存方案哦");
@@ -106,15 +116,13 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
 
         // 2. 插入主表 (t_user_custom_plan)
         UserCustomPlan mainPlan = new UserCustomPlan();
-        mainPlan.setUserId(dto.getUserId());
+        mainPlan.setUserId(userId); // 🌟 强行绑定当前登录人，杜绝通过篡改 ID 给别人塞方案
         mainPlan.setBasePlanId(dto.getBasePlanId());
         mainPlan.setName(dto.getName());
         mainPlan.setTotalCalorie(dto.getTotalCalorie());
         mainPlan.setCreateTime(now);
 
         customPlanMapper.insert(mainPlan);
-
-        // MyBatis-Plus 自动回填生成的主键 ID
         Long newCustomPlanId = mainPlan.getId();
 
         // 3. 循环插入三餐明细 (t_user_custom_plan_meal)
@@ -135,23 +143,5 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
         mealDetail.setDishId(dishId);
         mealDetail.setCreateTime(createTime);
         customPlanMealMapper.insert(mealDetail);
-    }
-
-    @Override
-    public List<DishVO> searchDish(String keyword, Integer categoryId) {
-        // 1. 使用 MyBatis-Plus 构建查询条件
-        List<Dish> dishes = this.lambdaQuery()
-                // 如果 keyword 不为空，则进行模糊查询
-                .like(keyword != null && !keyword.trim().isEmpty(), Dish::getName, keyword)
-                // 🌟 新增：如果 categoryId 不为空，则进行分类过滤
-                .eq(categoryId != null, Dish::getCategoryId, categoryId)
-                .list();
-
-        // 2. 转换实体为 VO
-        return dishes.stream().map(dish -> {
-            DishVO vo = new DishVO();
-            BeanUtils.copyProperties(dish, vo);
-            return vo;
-        }).collect(Collectors.toList());
     }
 }

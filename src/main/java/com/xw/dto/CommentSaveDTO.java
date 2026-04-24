@@ -9,8 +9,6 @@ import lombok.Data;
 @Data
 @Schema(description = "保存评论请求参数")
 public class CommentSaveDTO {
-    @Schema(description = "评论人用户ID", required = true)
-    private Long userId;
 
     @Schema(description = "动态ID", required = true)
     private Long shareId;

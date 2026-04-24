@@ -1,13 +1,18 @@
 package com.xw.controller;
 
+import com.xw.annotation.LogOperation;
 import com.xw.common.Result;
 import com.xw.dto.UserPreferenceDTO;
 import com.xw.entity.UserPreference;
 import com.xw.service.PreferenceService;
+import com.xw.utils.ThreadLocalUtil;
+import com.xw.vo.AllergyVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * @author XW
@@ -22,31 +27,39 @@ public class PreferenceController {
 
     @Operation(summary = "获取用户饮食偏好")
     @GetMapping("/info")
-    public Result<UserPreference> getPreference(@RequestParam Long userId) {
-        return preferenceService.getPreference(userId);
+    public Result<UserPreference> getPreference() {
+        Long currentUserId = ThreadLocalUtil.getCurrentUserId();
+        return preferenceService.getPreference(currentUserId);
     }
 
     @Operation(summary = "保存饮食偏好")
+    @LogOperation("保存用户饮食偏好")
     @PostMapping("/save")
     public Result<String> savePreference(@RequestBody UserPreferenceDTO dto) {
-        return preferenceService.savePreference(dto);
+        Long currentUserId = ThreadLocalUtil.getCurrentUserId();
+        return preferenceService.savePreference(currentUserId, dto);
     }
 
     @Operation(summary = "添加过敏食材")
+    @LogOperation("添加过敏食材")
     @PostMapping("/allergy/add")
-    public Result<String> addAllergy(@RequestParam Long userId, @RequestParam Long materialId) {
-        return preferenceService.addAllergy(userId, materialId);
+    public Result<String> addAllergy(@RequestParam Long materialId) {
+        Long currentUserId = ThreadLocalUtil.getCurrentUserId();
+        return preferenceService.addAllergy(currentUserId, materialId);
     }
 
     @Operation(summary = "删除过敏食材")
+    @LogOperation("删除过敏食材")
     @DeleteMapping("/allergy/delete")
-    public Result<String> deleteAllergy(@RequestParam Long userId, @RequestParam Long materialId) {
-        return preferenceService.deleteAllergy(userId, materialId);
+    public Result<String> deleteAllergy(@RequestParam Long materialId) {
+        Long currentUserId = ThreadLocalUtil.getCurrentUserId();
+        return preferenceService.deleteAllergy(currentUserId, materialId);
     }
 
     @Operation(summary = "获取用户过敏食材列表")
     @GetMapping("/allergy/list")
-    public Result<java.util.List<com.xw.vo.AllergyVO>> getUserAllergies(@RequestParam Long userId) {
-        return preferenceService.getUserAllergies(userId);
+    public Result<List<AllergyVO>> getUserAllergies() {
+        Long currentUserId = ThreadLocalUtil.getCurrentUserId();
+        return preferenceService.getUserAllergies(currentUserId);
     }
 }

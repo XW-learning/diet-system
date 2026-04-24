@@ -11,8 +11,6 @@ import java.time.LocalDate;
 @Data
 @Schema(description = "运动打卡请求参数")
 public class ExerciseCheckInDTO {
-    @Schema(description = "用户ID", required = true)
-    private Long userId;
 
     @Schema(description = "运动项目ID (关联 t_exercise 表)", required = true)
     private Long exerciseId;

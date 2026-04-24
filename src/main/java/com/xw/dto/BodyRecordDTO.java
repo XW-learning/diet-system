@@ -14,13 +14,11 @@ import java.time.LocalDateTime; // 🌟 记得加上这个导入
 @Data
 @Schema(description = "身体数据记录请求参数")
 public class BodyRecordDTO {
-    @Schema(description = "用户ID", required = true)
-    private Long userId;
 
     @Schema(description = "身高(cm)", required = false, example = "175.5")
     private BigDecimal height;
 
-    @Schema(description = "体重(kg)", required = false, example = "65.0") // 🌟 改为非必填，因为记经期不一定有体重
+    @Schema(description = "体重(kg)", required = false, example = "65.0")
     private BigDecimal weight;
 
     @Schema(description = "腰围(cm)", example = "80.0")

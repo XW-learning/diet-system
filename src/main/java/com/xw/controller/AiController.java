@@ -1,5 +1,6 @@
 package com.xw.controller;
 
+import com.xw.annotation.LogOperation;
 import com.xw.common.Result;
 import com.xw.dto.AiChatDTO;
 import com.xw.dto.AiFeedbackDTO;
@@ -26,6 +27,7 @@ public class AiController {
     private AiService aiService;
 
     @Operation(summary = "38. AI 拍照识别食物与卡路里")
+    @LogOperation("39. 拍照识别食物与卡路里")
     @PostMapping(value = "/recognize", consumes = "multipart/form-data")
     public Result<AiDishVO> recognizeImage(
             @RequestParam("file") MultipartFile file,
@@ -34,6 +36,7 @@ public class AiController {
     }
 
     @Operation(summary = "39. 提交纠正反馈")
+    @LogOperation("40. 提交纠正反馈")
     @PostMapping("/feedback")
     public Result<String> submitFeedback(@RequestBody AiFeedbackDTO dto) {
         return aiService.submitFeedback(dto);

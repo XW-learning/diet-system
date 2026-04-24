@@ -23,7 +23,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * 打卡业务实现类
+ * 打卡业务实现类 - 重构版 (上下文身份注入)
+ *
  * @author XW
  */
 @Service
@@ -45,12 +46,10 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
     private ExerciseMapper exerciseMapper;
     @Autowired
     private CheckInStatMapper statMapper;
-
     @Autowired
     private CheckInStatMapper checkInStatMapper;
-
     @Autowired
-    private UserWaterRecordMapper userWaterRecordMapper; // 注入饮水Mapper
+    private UserWaterRecordMapper userWaterRecordMapper;
 
     @Override
     public Result<CheckInSummaryVO> getSummary(Long userId, LocalDate date) {
@@ -75,44 +74,38 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Result<String> doMealCheckIn(com.xw.dto.MealCheckInDTO dto) {
-        // 1. 严格参数校验
-        if (dto.getUserId() == null || dto.getDishId() == null || dto.getMealType() == null || dto.getWeight() == null) {
+    public Result<String> doMealCheckIn(Long userId, MealCheckInDTO dto) { // 🌟 接收 userId 参数
+        // 1. 严格参数校验 (不再需要校验 dto.getUserId())
+        if (dto.getDishId() == null || dto.getMealType() == null || dto.getWeight() == null) {
             return Result.error("提交失败：缺少必要参数");
         }
 
-        // 2. 获取菜品基数并计算（解决精度丢失问题）
-        com.xw.entity.Dish dish = dishMapper.selectById(dto.getDishId());
+        // 2. 获取菜品基数并计算
+        Dish dish = dishMapper.selectById(dto.getDishId());
         if (dish == null) return Result.error("菜品不存在");
 
-        // 使用 BigDecimal 确保计算精度，不提前四舍五入
         BigDecimal inputWeight = new BigDecimal(dto.getWeight());
         BigDecimal refWeight = dish.getRefWeight() != null ? dish.getRefWeight() : new BigDecimal("100");
-        // 计算系数：当前重量 / 基准重量
         BigDecimal factor = inputWeight.divide(refWeight, 6, RoundingMode.HALF_UP);
 
-        // 计算实际摄入值（保留小数，最后存入数据库时再格式化）
         int cal = factor.multiply(new BigDecimal(dish.getCalorie())).setScale(0, RoundingMode.HALF_UP).intValue();
         BigDecimal carb = factor.multiply(dish.getCarbohydrate() != null ? dish.getCarbohydrate() : BigDecimal.ZERO);
         BigDecimal protein = factor.multiply(dish.getProtein() != null ? dish.getProtein() : BigDecimal.ZERO);
         BigDecimal fat = factor.multiply(dish.getFat() != null ? dish.getFat() : BigDecimal.ZERO);
         BigDecimal fiber = factor.multiply(dish.getFiber() != null ? dish.getFiber() : BigDecimal.ZERO);
 
-        // 3. 处理主表记录 (t_check_in) - 解决并发与初始化问题
+        // 3. 处理主表记录
         java.time.LocalDate targetDate = dto.getDate() != null ? dto.getDate() : java.time.LocalDate.now();
 
-        // 🌟 核心改进：使用数据库唯一索引 + upsert 逻辑 (需要修改 Mapper)
-        // 我们先尝试获取今日记录，如果不存在则初始化
-        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.xw.entity.CheckIn> query = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
-        query.eq(com.xw.entity.CheckIn::getUserId, dto.getUserId()).eq(com.xw.entity.CheckIn::getDate, targetDate);
-        com.xw.entity.CheckIn mainRecord = checkInMapper.selectOne(query);
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<CheckIn> query = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+        query.eq(CheckIn::getUserId, userId).eq(CheckIn::getDate, targetDate); // 🌟 使用参数 userId
+        CheckIn mainRecord = checkInMapper.selectOne(query);
 
         if (mainRecord == null) {
-            // 今日首笔记录：初始化预算
-            mainRecord = new com.xw.entity.CheckIn();
-            mainRecord.setUserId(dto.getUserId());
+            mainRecord = new CheckIn();
+            mainRecord.setUserId(userId); // 🌟 使用参数 userId
             mainRecord.setDate(targetDate);
-            mainRecord.setBudgetCalorie(calculateDynamicBudget(dto.getUserId())); // 动态计算预算
+            mainRecord.setBudgetCalorie(calculateDynamicBudget(userId)); // 🌟 使用参数 userId
             mainRecord.setTotalCalorie(cal);
             mainRecord.setBurnCalorie(0);
             mainRecord.setCreateTime(java.time.LocalDateTime.now());
@@ -120,19 +113,15 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
             try {
                 checkInMapper.insert(mainRecord);
             } catch (org.springframework.dao.DuplicateKeyException e) {
-                // 🌟 解决并发问题：如果 insert 报唯一键冲突，说明另一个请求刚插完，改为更新
                 mainRecord = checkInMapper.selectOne(query);
-                // 🌟 解决原子累加问题：使用自定义 SQL 累加，防止覆盖
                 checkInMapper.atomicIncrementCalorie(mainRecord.getId(), cal);
             }
         } else {
-            // 🌟 核心改进：不再删除旧记录（除非业务要求覆盖），而是采用追加逻辑
-            // 解决“牛奶+面包”只能记一个的问题
             checkInMapper.atomicIncrementCalorie(mainRecord.getId(), cal);
         }
 
-        // 4. 插入明细记录 (t_check_in_detail)
-        com.xw.entity.CheckInDetail detail = new com.xw.entity.CheckInDetail();
+        // 4. 插入明细记录
+        CheckInDetail detail = new CheckInDetail();
         detail.setCheckInId(mainRecord.getId());
         detail.setMealType(dto.getMealType());
         detail.setDishId(dto.getDishId());
@@ -145,44 +134,38 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
         detail.setCreateTime(java.time.LocalDateTime.now());
         detailMapper.insert(detail);
 
-        // 5. 异步/条件更新统计状态
-        // 只要是今天的数据打卡，都触发一次统计校验
+        // 5. 更新统计状态
         if (targetDate.equals(java.time.LocalDate.now())) {
-            updateCheckInStat(dto.getUserId(), targetDate);
+            updateCheckInStat(userId, targetDate); // 🌟 使用参数 userId
         }
 
         return Result.success("打卡成功！本次摄入 " + cal + " 千卡");
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class) // 开启事务，保证要成功一起成功，要失败一起失败
-    public Result<String> doMealCheckInBatch(List<MealCheckInDTO> dtoList) {
-        // 打印参数
+    @Transactional(rollbackFor = Exception.class)
+    public Result<String> doMealCheckInBatch(Long userId, List<MealCheckInDTO> dtoList) { // 🌟 接收 userId 参数
         System.out.println("接收到批量食物提交请求：" + dtoList);
         if (dtoList == null || dtoList.isEmpty()) {
             return Result.error("提交失败：食物列表为空");
         }
 
-        // 假设同一批次打卡属于同一个用户和同一天
-        Long userId = dtoList.get(0).getUserId();
+        // 🌟 删除从 dtoList.get(0).getUserId() 取值的逻辑，直接使用拦截器传来的参数
         java.time.LocalDate targetDate = dtoList.get(0).getDate() != null ? dtoList.get(0).getDate() : java.time.LocalDate.now();
 
-        int totalCalorieToAdd = 0; // 用于累计这一次批量提交的总热量
-        List<com.xw.entity.CheckInDetail> detailList = new ArrayList<>();
+        int totalCalorieToAdd = 0;
+        List<CheckInDetail> detailList = new ArrayList<>();
 
-        // 1. 遍历计算所有食物的热量和营养素
         for (MealCheckInDTO dto : dtoList) {
             if (dto.getDishId() == null || dto.getWeight() == null) continue;
 
-            com.xw.entity.Dish dish = dishMapper.selectById(dto.getDishId());
+            Dish dish = dishMapper.selectById(dto.getDishId());
             if (dish == null) continue;
 
-            // 计算系数
             BigDecimal inputWeight = new BigDecimal(dto.getWeight());
             BigDecimal refWeight = dish.getRefWeight() != null ? dish.getRefWeight() : new BigDecimal("100");
             BigDecimal factor = inputWeight.divide(refWeight, 6, RoundingMode.HALF_UP);
 
-            // 计算该单项的热量与宏量营养素
             int cal = factor.multiply(new BigDecimal(dish.getCalorie())).setScale(0, RoundingMode.HALF_UP).intValue();
             BigDecimal carb = factor.multiply(dish.getCarbohydrate() != null ? dish.getCarbohydrate() : BigDecimal.ZERO);
             BigDecimal protein = factor.multiply(dish.getProtein() != null ? dish.getProtein() : BigDecimal.ZERO);
@@ -191,8 +174,7 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
 
             totalCalorieToAdd += cal;
 
-            // 封装明细对象（暂不设 CheckInId，等主表处理完再设）
-            com.xw.entity.CheckInDetail detail = new com.xw.entity.CheckInDetail();
+            CheckInDetail detail = new CheckInDetail();
             detail.setMealType(dto.getMealType());
             detail.setDishId(dto.getDishId());
             detail.setCalorie(cal);
@@ -210,43 +192,37 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
             return Result.error("打卡失败：无可用的食物数据");
         }
 
-        // 2. 处理主表记录 (只操作一次数据库)
-        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.xw.entity.CheckIn> query = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
-        query.eq(com.xw.entity.CheckIn::getUserId, userId).eq(com.xw.entity.CheckIn::getDate, targetDate);
-        com.xw.entity.CheckIn mainRecord = checkInMapper.selectOne(query);
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<CheckIn> query = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+        query.eq(CheckIn::getUserId, userId).eq(CheckIn::getDate, targetDate); // 🌟
+        CheckIn mainRecord = checkInMapper.selectOne(query);
 
         if (mainRecord == null) {
-            // 今日首笔记录：初始化
-            mainRecord = new com.xw.entity.CheckIn();
-            mainRecord.setUserId(userId);
+            mainRecord = new CheckIn();
+            mainRecord.setUserId(userId); // 🌟
             mainRecord.setDate(targetDate);
-            mainRecord.setBudgetCalorie(calculateDynamicBudget(userId));
-            mainRecord.setTotalCalorie(totalCalorieToAdd); // 直接赋总值
+            mainRecord.setBudgetCalorie(calculateDynamicBudget(userId)); // 🌟
+            mainRecord.setTotalCalorie(totalCalorieToAdd);
             mainRecord.setBurnCalorie(0);
             mainRecord.setCreateTime(java.time.LocalDateTime.now());
 
             try {
                 checkInMapper.insert(mainRecord);
             } catch (org.springframework.dao.DuplicateKeyException e) {
-                // 并发情况：查出来后被别人抢先插入了，则改为更新
                 mainRecord = checkInMapper.selectOne(query);
                 checkInMapper.atomicIncrementCalorie(mainRecord.getId(), totalCalorieToAdd);
             }
         } else {
-            // 已经有记录，累加这次购物车的总和
             checkInMapper.atomicIncrementCalorie(mainRecord.getId(), totalCalorieToAdd);
         }
 
-        // 3. 关联明细并插入数据库
         Long checkInId = mainRecord.getId();
-        for (com.xw.entity.CheckInDetail detail : detailList) {
+        for (CheckInDetail detail : detailList) {
             detail.setCheckInId(checkInId);
             detailMapper.insert(detail);
         }
 
-        // 4. 更新打卡统计状态
         if (targetDate.equals(java.time.LocalDate.now())) {
-            updateCheckInStat(userId, targetDate);
+            updateCheckInStat(userId, targetDate); // 🌟
         }
 
         return Result.success("打卡成功！共计摄入 " + totalCalorieToAdd + " 千卡");
@@ -254,8 +230,9 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Result<String> doExerciseCheckIn(ExerciseCheckInDTO dto) {
-        if (dto.getUserId() == null || dto.getExerciseId() == null || dto.getDuration() == null) {
+    public Result<String> doExerciseCheckIn(Long userId, ExerciseCheckInDTO dto) { // 🌟 接收 userId
+        // 🌟 移除 dto.getUserId() == null 的校验
+        if (dto.getExerciseId() == null || dto.getDuration() == null) {
             return Result.error("缺少必要参数");
         }
         LocalDate targetDate = dto.getDate() != null ? dto.getDate() : LocalDate.now();
@@ -267,16 +244,16 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
         int calculatedBurnCalorie = (int) Math.round(caloriePerMinute * dto.getDuration());
 
         LambdaQueryWrapper<CheckIn> mainWrapper = new LambdaQueryWrapper<>();
-        mainWrapper.eq(CheckIn::getUserId, dto.getUserId()).eq(CheckIn::getDate, targetDate);
+        mainWrapper.eq(CheckIn::getUserId, userId).eq(CheckIn::getDate, targetDate); // 🌟
         CheckIn mainRecord = checkInMapper.selectOne(mainWrapper);
 
         boolean isFirstCheckInToday = false;
 
         if (mainRecord == null) {
             mainRecord = new CheckIn();
-            mainRecord.setUserId(dto.getUserId());
+            mainRecord.setUserId(userId); // 🌟
             mainRecord.setDate(targetDate);
-            mainRecord.setBudgetCalorie(calculateDynamicBudget(dto.getUserId()));
+            mainRecord.setBudgetCalorie(calculateDynamicBudget(userId)); // 🌟
             mainRecord.setTotalCalorie(0);
             mainRecord.setBurnCalorie(calculatedBurnCalorie);
             mainRecord.setCreateTime(LocalDateTime.now());
@@ -297,7 +274,7 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
         exerciseRecordMapper.insert(record);
 
         if (isFirstCheckInToday && targetDate.equals(LocalDate.now())) {
-            updateCheckInStat(dto.getUserId(), targetDate);
+            updateCheckInStat(userId, targetDate); // 🌟
         }
 
         return Result.success("运动成功！增加了 " + calculatedBurnCalorie + " kcal 额度");
@@ -410,19 +387,18 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
     }
 
     @Override
-    public Result<com.xw.vo.CheckInAnalysisVO> getDailyAnalysis(Long userId, String dateStr) {
+    public Result<CheckInAnalysisVO> getDailyAnalysis(Long userId, String dateStr) {
         java.time.LocalDate targetDate = java.time.LocalDate.parse(dateStr);
-        com.xw.vo.CheckInAnalysisVO vo = new com.xw.vo.CheckInAnalysisVO();
+        CheckInAnalysisVO vo = new CheckInAnalysisVO();
 
         // 1. 查主表获取基础热量
-        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.xw.entity.CheckIn> mainQuery = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
-        mainQuery.eq(com.xw.entity.CheckIn::getUserId, userId).eq(com.xw.entity.CheckIn::getDate, targetDate);
-        com.xw.entity.CheckIn mainRecord = checkInMapper.selectOne(mainQuery);
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<CheckIn> mainQuery = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+        mainQuery.eq(CheckIn::getUserId, userId).eq(CheckIn::getDate, targetDate);
+        CheckIn mainRecord = checkInMapper.selectOne(mainQuery);
 
         int budget = 0;
         if (mainRecord == null) {
-            // 今天还没打过卡，给默认空数据
-            budget = calculateDynamicBudget(userId); // 调用你之前写过的计算预算的方法
+            budget = calculateDynamicBudget(userId);
             vo.setBudgetCalorie(budget);
             vo.setIntakeCalorie(0);
             vo.setBurnCalorie(0);
@@ -430,7 +406,10 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
             vo.setTotalCarbohydrate(java.math.BigDecimal.ZERO);
             vo.setTotalProtein(java.math.BigDecimal.ZERO);
             vo.setTotalFat(java.math.BigDecimal.ZERO);
-            vo.setBreakfastCalorie(0); vo.setLunchCalorie(0); vo.setDinnerCalorie(0); vo.setSnackCalorie(0);
+            vo.setBreakfastCalorie(0);
+            vo.setLunchCalorie(0);
+            vo.setDinnerCalorie(0);
+            vo.setSnackCalorie(0);
         } else {
             budget = mainRecord.getBudgetCalorie() != null ? mainRecord.getBudgetCalorie() : calculateDynamicBudget(userId);
             vo.setBudgetCalorie(budget);
@@ -439,28 +418,34 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
             vo.setRemainCalorie(budget - mainRecord.getTotalCalorie() + mainRecord.getBurnCalorie());
 
             // 2. 查明细表汇总营养素和各餐次热量
-            com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.xw.entity.CheckInDetail> detailQuery = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
-            detailQuery.eq(com.xw.entity.CheckInDetail::getCheckInId, mainRecord.getId());
-            java.util.List<com.xw.entity.CheckInDetail> details = detailMapper.selectList(detailQuery);
+            com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<CheckInDetail> detailQuery = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+            detailQuery.eq(CheckInDetail::getCheckInId, mainRecord.getId());
+            java.util.List<CheckInDetail> details = detailMapper.selectList(detailQuery);
 
             java.math.BigDecimal totalCarb = java.math.BigDecimal.ZERO;
             java.math.BigDecimal totalPro = java.math.BigDecimal.ZERO;
             java.math.BigDecimal totalFat = java.math.BigDecimal.ZERO;
             int bCal = 0, lCal = 0, dCal = 0, sCal = 0;
 
-            for (com.xw.entity.CheckInDetail detail : details) {
-                // 累加营养素
+            for (CheckInDetail detail : details) {
                 if (detail.getCarbohydrate() != null) totalCarb = totalCarb.add(detail.getCarbohydrate());
                 if (detail.getProtein() != null) totalPro = totalPro.add(detail.getProtein());
                 if (detail.getFat() != null) totalFat = totalFat.add(detail.getFat());
 
-                // 按餐次累加热量
                 if (detail.getMealType() != null && detail.getCalorie() != null) {
                     switch (detail.getMealType()) {
-                        case 1: bCal += detail.getCalorie(); break;
-                        case 2: lCal += detail.getCalorie(); break;
-                        case 3: dCal += detail.getCalorie(); break;
-                        case 4: sCal += detail.getCalorie(); break;
+                        case 1:
+                            bCal += detail.getCalorie();
+                            break;
+                        case 2:
+                            lCal += detail.getCalorie();
+                            break;
+                        case 3:
+                            dCal += detail.getCalorie();
+                            break;
+                        case 4:
+                            sCal += detail.getCalorie();
+                            break;
                     }
                 }
             }
@@ -474,10 +459,6 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
             vo.setSnackCalorie(sCal);
         }
 
-        // 3. 核心算法：计算三大营养素推荐值
-        // 碳水(50%)：1g=4千卡 -> (预算 * 0.5) / 4
-        // 蛋白(20%)：1g=4千卡 -> (预算 * 0.2) / 4
-        // 脂肪(30%)：1g=9千卡 -> (预算 * 0.3) / 9
         vo.setRecommendCarbohydrate(new java.math.BigDecimal(budget * 0.5 / 4).setScale(1, java.math.RoundingMode.HALF_UP));
         vo.setRecommendProtein(new java.math.BigDecimal(budget * 0.2 / 4).setScale(1, java.math.RoundingMode.HALF_UP));
         vo.setRecommendFat(new java.math.BigDecimal(budget * 0.3 / 9).setScale(1, java.math.RoundingMode.HALF_UP));
@@ -489,13 +470,11 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
     public Result<FitnessCalendarVO> getFitnessCalendarData(Long userId, Integer year, Integer month) {
         FitnessCalendarVO vo = new FitnessCalendarVO();
 
-        // 1. 获取连胜天数
         LambdaQueryWrapper<CheckInStat> statWrapper = new LambdaQueryWrapper<>();
         statWrapper.eq(CheckInStat::getUserId, userId);
         CheckInStat stat = checkInStatMapper.selectOne(statWrapper);
         vo.setContinuousDays(stat != null && stat.getContinuousDays() != null ? stat.getContinuousDays() : 0);
 
-        // 2. 从数据库一次性取出当月所有的运动明细
         List<ExerciseCalendarDTO> records = exerciseRecordMapper.selectMonthlyExerciseRecords(userId, year, month);
 
         if (records == null || records.isEmpty()) {
@@ -507,10 +486,9 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
             return Result.success(vo);
         }
 
-        // 3. 在 Java 内存中进行数据聚合 (高效处理)
         int totalDuration = 0;
         int totalCalories = 0;
-        Set<LocalDate> workoutDays = new HashSet<>(); // 利用 Set 去重，计算运动了多少天
+        Set<LocalDate> workoutDays = new HashSet<>();
 
         Map<String, FitnessCalendarVO.DailyFitnessVO> dailyMap = new HashMap<>();
         Map<String, Integer> exerciseDurationMap = new HashMap<>();
@@ -519,19 +497,16 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
             int duration = record.getDuration() != null ? record.getDuration() : 0;
             int calories = record.getBurnCalorie() != null ? record.getBurnCalorie() : 0;
 
-            // 3.1 累加总计
             totalDuration += duration;
             totalCalories += calories;
             workoutDays.add(record.getRecordDate());
 
-            // 3.2 聚合每日数据 (网格胶囊使用)
-            String dateStr = record.getRecordDate().toString(); // 格式 "2026-04-16"
+            String dateStr = record.getRecordDate().toString();
             FitnessCalendarVO.DailyFitnessVO dailyVO = dailyMap.getOrDefault(dateStr, new FitnessCalendarVO.DailyFitnessVO());
             dailyVO.setDuration((dailyVO.getDuration() == null ? 0 : dailyVO.getDuration()) + duration);
             dailyVO.setCalories((dailyVO.getCalories() == null ? 0 : dailyVO.getCalories()) + calories);
             dailyMap.put(dateStr, dailyVO);
 
-            // 3.3 聚合各项运动的总时长 (Top5 排行榜使用)
             String exName = record.getExerciseName();
             if (exName != null && !exName.trim().isEmpty()) {
                 exerciseDurationMap.put(exName, exerciseDurationMap.getOrDefault(exName, 0) + duration);
@@ -543,7 +518,6 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
         vo.setTotalBurnCalorie(totalCalories);
         vo.setDailyData(dailyMap);
 
-        // 4. 计算 Top 5 排行榜 (使用 Stream API 降序排序并截取前 5)
         List<FitnessCalendarVO.WorkoutRankVO> top5 = exerciseDurationMap.entrySet().stream()
                 .map(entry -> {
                     FitnessCalendarVO.WorkoutRankVO rankVO = new FitnessCalendarVO.WorkoutRankVO();
@@ -551,7 +525,7 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
                     rankVO.setDuration(entry.getValue());
                     return rankVO;
                 })
-                .sorted((a, b) -> b.getDuration().compareTo(a.getDuration())) // 按照时长降序
+                .sorted((a, b) -> b.getDuration().compareTo(a.getDuration()))
                 .limit(5)
                 .collect(Collectors.toList());
 
@@ -565,36 +539,26 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
         FatLossCalendarVO vo = new FatLossCalendarVO();
         Map<String, FatLossCalendarVO.DailyFatLossVO> dailyMap = new HashMap<>();
 
-        // 1. 计算当月的起止时间
         YearMonth yearMonth = YearMonth.of(year, month);
         LocalDate startDate = yearMonth.atDay(1);
         LocalDate endDate = yearMonth.atEndOfMonth();
 
-        // 2. 批量查询当月数据 (杜绝 For 循环查库)
-
-        // 2.1 查饮食热量 (t_check_in)
         LambdaQueryWrapper<CheckIn> checkInWrapper = new LambdaQueryWrapper<>();
         checkInWrapper.eq(CheckIn::getUserId, userId)
                 .between(CheckIn::getDate, startDate, endDate);
         List<CheckIn> checkIns = checkInMapper.selectList(checkInWrapper);
 
-        // 2.2 查体重记录 (t_user_body_record)
-        // 假设 record_time 是 LocalDateTime 类型
         LambdaQueryWrapper<UserBodyRecord> bodyWrapper = new LambdaQueryWrapper<>();
         bodyWrapper.eq(UserBodyRecord::getUserId, userId)
                 .ge(UserBodyRecord::getRecordTime, startDate.atStartOfDay())
                 .le(UserBodyRecord::getRecordTime, endDate.atTime(23, 59, 59));
         List<UserBodyRecord> bodyRecords = bodyRecordMapper.selectList(bodyWrapper);
 
-        // 2.3 查饮水记录 (t_user_water_record)
         LambdaQueryWrapper<UserWaterRecord> waterWrapper = new LambdaQueryWrapper<>();
         waterWrapper.eq(UserWaterRecord::getUserId, userId)
-                .between(UserWaterRecord::getRecordDate, startDate, endDate); // 假设字段名叫 recordDate
+                .between(UserWaterRecord::getRecordDate, startDate, endDate);
         List<UserWaterRecord> waterRecords = userWaterRecordMapper.selectList(waterWrapper);
 
-        // 3. 在 Java 内存中进行数据拼装 (极速组合)
-
-        // 3.1 拼装热量数据
         for (CheckIn checkIn : checkIns) {
             String dateStr = checkIn.getDate().toString();
             FatLossCalendarVO.DailyFatLossVO daily = dailyMap.computeIfAbsent(dateStr, k -> new FatLossCalendarVO.DailyFatLossVO());
@@ -605,34 +569,104 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
 
             daily.setIntakeCalorie(intake > 0 ? intake : null);
 
-            // 计算热量缺口：缺口 = 预算 + 消耗 - 摄入
-            // 如果当天没有吃东西(摄入为0)，缺口计算没有意义，可根据业务逻辑调整
             if (intake > 0) {
                 int deficit = budget + burn - intake;
-                daily.setDeficitCalorie(deficit > 0 ? deficit : 0); // 缺口大于0才算缺口
+                daily.setDeficitCalorie(deficit > 0 ? deficit : 0);
             }
         }
 
-        // 3.2 拼装体重数据
         for (UserBodyRecord body : bodyRecords) {
             if (body.getWeight() != null) {
                 String dateStr = body.getRecordTime().toLocalDate().toString();
                 FatLossCalendarVO.DailyFatLossVO daily = dailyMap.computeIfAbsent(dateStr, k -> new FatLossCalendarVO.DailyFatLossVO());
-                // 如果一天记了多次体重，这里会保留最后遍历到的那个（也可以自己写逻辑求平均值）
                 daily.setWeight(body.getWeight());
             }
         }
 
-        // 3.3 拼装饮水数据
         for (UserWaterRecord water : waterRecords) {
-            String dateStr = water.getRecordDate().toString(); // 假设叫 recordDate
+            String dateStr = water.getRecordDate().toString();
             FatLossCalendarVO.DailyFatLossVO daily = dailyMap.computeIfAbsent(dateStr, k -> new FatLossCalendarVO.DailyFatLossVO());
-            // 只要当天有记录，就点亮饮水图标
             daily.setHasWater(true);
         }
 
-        // 3.4 经期数据 (待补充)
-        // TODO: 确认经期数据存在哪张表，然后像上面一样查出 List 并在内存里 for 循环拼装到 daily.setIsPeriod(true) 中
+        LambdaQueryWrapper<UserBodyRecord> periodWrapper = new LambdaQueryWrapper<>();
+        periodWrapper.eq(UserBodyRecord::getUserId, userId)
+                .isNotNull(UserBodyRecord::getPeriodStartDate)
+                .isNotNull(UserBodyRecord::getPeriodEndDate)
+                .ge(UserBodyRecord::getPeriodEndDate, startDate)
+                .le(UserBodyRecord::getPeriodStartDate, endDate);
+        List<UserBodyRecord> periodRecords = bodyRecordMapper.selectList(periodWrapper);
+
+        for (UserBodyRecord record : periodRecords) {
+            LocalDate pStart = record.getPeriodStartDate();
+            LocalDate pEnd = record.getPeriodEndDate();
+
+            LocalDate actualStart = pStart.isBefore(startDate) ? startDate : pStart;
+            LocalDate actualEnd = pEnd.isAfter(endDate) ? endDate : pEnd;
+
+            for (LocalDate d = actualStart; !d.isAfter(actualEnd); d = d.plusDays(1)) {
+                String dateStr = d.toString();
+                FatLossCalendarVO.DailyFatLossVO daily = dailyMap.computeIfAbsent(dateStr, k -> new FatLossCalendarVO.DailyFatLossVO());
+                daily.setIsPeriod(true);
+            }
+        }
+
+        vo.setDailyData(dailyMap);
+        return Result.success(vo);
+    }
+
+    @Override
+    public Result<FoodCalendarVO> getFoodCalendarData(Long userId, Integer year, Integer month) {
+        FoodCalendarVO vo = new FoodCalendarVO();
+        Map<String, FoodCalendarVO.DailyFoodVO> dailyMap = new HashMap<>();
+
+        YearMonth yearMonth = YearMonth.of(year, month);
+        LocalDate startDate = yearMonth.atDay(1);
+        LocalDate endDate = yearMonth.atEndOfMonth();
+
+        LambdaQueryWrapper<CheckIn> checkInWrapper = new LambdaQueryWrapper<>();
+        checkInWrapper.eq(CheckIn::getUserId, userId)
+                .between(CheckIn::getDate, startDate, endDate);
+        List<CheckIn> checkIns = checkInMapper.selectList(checkInWrapper);
+
+        if (checkIns.isEmpty()) {
+            vo.setDailyData(dailyMap);
+            return Result.success(vo);
+        }
+
+        List<Long> checkInIds = checkIns.stream().map(CheckIn::getId).collect(Collectors.toList());
+
+        LambdaQueryWrapper<CheckInDetail> detailWrapper = new LambdaQueryWrapper<>();
+        detailWrapper.in(CheckInDetail::getCheckInId, checkInIds)
+                .isNotNull(CheckInDetail::getMealType);
+        List<CheckInDetail> details = detailMapper.selectList(detailWrapper);
+
+        Map<Long, List<CheckInDetail>> detailMap = details.stream()
+                .collect(Collectors.groupingBy(CheckInDetail::getCheckInId));
+
+        for (CheckIn checkIn : checkIns) {
+            String dateStr = checkIn.getDate().toString();
+            FoodCalendarVO.DailyFoodVO daily = new FoodCalendarVO.DailyFoodVO();
+
+            int intake = checkIn.getTotalCalorie() != null ? checkIn.getTotalCalorie() : 0;
+            int budget = checkIn.getBudgetCalorie() != null ? checkIn.getBudgetCalorie() : calculateDynamicBudget(userId);
+            daily.setIsOver(intake > budget);
+
+            List<String> mealTypes = new ArrayList<>();
+            List<CheckInDetail> dayDetails = detailMap.getOrDefault(checkIn.getId(), new ArrayList<>());
+
+            Set<Integer> recordedMeals = dayDetails.stream()
+                    .map(CheckInDetail::getMealType)
+                    .collect(Collectors.toSet());
+
+            if (recordedMeals.contains(1)) mealTypes.add("breakfast");
+            if (recordedMeals.contains(2)) mealTypes.add("lunch");
+            if (recordedMeals.contains(3)) mealTypes.add("dinner");
+            if (recordedMeals.contains(4)) mealTypes.add("snack");
+
+            daily.setMeals(mealTypes);
+            dailyMap.put(dateStr, daily);
+        }
 
         vo.setDailyData(dailyMap);
         return Result.success(vo);

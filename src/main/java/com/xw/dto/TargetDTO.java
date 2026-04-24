@@ -12,8 +12,6 @@ import java.time.LocalDate;
 @Data
 @Schema(description = "用户目标设定请求参数")
 public class TargetDTO {
-    @Schema(description = "用户ID", required = true)
-    private Long userId;
 
     @Schema(description = "目标体重(kg)", example = "60.0")
     private BigDecimal targetWeight;

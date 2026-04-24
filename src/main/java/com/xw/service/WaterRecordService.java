@@ -4,15 +4,20 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.xw.dto.WaterAddDTO;
 import com.xw.entity.UserWaterRecord;
 
+/**
+ * 饮水记录服务接口
+ * @author XW
+ */
 public interface WaterRecordService extends IService<UserWaterRecord> {
 
     /**
-     * 获取用户当天的饮水记录
+     * 获取今日饮水记录
+     * 这个方法本来就设计得很好，直接传 userId
      */
     UserWaterRecord getTodayRecord(Long userId);
 
     /**
-     * 增加饮水量
+     * 🌟 核心安全修改：增加 userId 参数，防越权打卡
      */
-    void addWater(WaterAddDTO dto);
+    void addWater(Long userId, WaterAddDTO dto);
 }

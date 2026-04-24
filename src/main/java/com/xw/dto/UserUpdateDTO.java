@@ -12,8 +12,6 @@ import java.math.BigDecimal;
 @Data
 @Schema(description = "用户信息更新请求参数")
 public class UserUpdateDTO {
-    @Schema(description = "用户ID", required = true)
-    private Long id;
 
     @Schema(description = "用户名", example = "张三")
     private String username;

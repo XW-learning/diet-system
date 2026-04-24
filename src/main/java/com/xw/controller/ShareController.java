@@ -1,8 +1,10 @@
 package com.xw.controller;
 
+import com.xw.annotation.LogOperation;
 import com.xw.common.Result;
 import com.xw.dto.ShareSaveDTO;
 import com.xw.service.ShareService;
+import com.xw.utils.ThreadLocalUtil;
 import com.xw.vo.ShareVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,15 +25,18 @@ public class ShareController {
     private ShareService shareService;
 
     @Operation(summary = "29. 发布/修改分享")
+    @LogOperation("29. 发布/修改分享")
     @PostMapping("/save")
     public Result<String> saveShare(@RequestBody ShareSaveDTO dto) {
         return shareService.saveShare(dto);
     }
 
     @Operation(summary = "30. 删除分享")
+    @LogOperation("30. 删除分享")
     @DeleteMapping("/delete")
-    public Result<String> deleteShare(@RequestParam Long id, @RequestParam Long userId) {
-        return shareService.deleteShare(id, userId);
+    public Result<String> deleteShare(@RequestParam Long id) {
+        Long currentUserId = ThreadLocalUtil.getCurrentUserId();
+        return shareService.deleteShare(id, currentUserId);
     }
 
     @Operation(summary = "31. 大厅分享列表(最新公开动态)")
@@ -42,7 +47,8 @@ public class ShareController {
 
     @Operation(summary = "33. 我的分享列表")
     @GetMapping("/my")
-    public Result<List<ShareVO>> getMyShares(@RequestParam Long userId) {
-        return shareService.getMyShares(userId);
+    public Result<List<ShareVO>> getMyShares() {
+        Long currentUserId = ThreadLocalUtil.getCurrentUserId();
+        return shareService.getMyShares(currentUserId);
     }
 }

@@ -9,10 +9,14 @@ import com.xw.entity.Category;
 import com.xw.mapper.CategoryMapper;
 import com.xw.service.CategoryService;
 import com.xw.vo.CategoryVO;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * @author XW
+ */
 @Service
 public class CategoryServiceImpl implements CategoryService {
 
@@ -20,6 +24,7 @@ public class CategoryServiceImpl implements CategoryService {
     private CategoryMapper categoryMapper;
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void addCategory(CategoryDTO categoryDTO) {
         Category category = new Category();
         BeanUtils.copyProperties(categoryDTO, category);
@@ -33,6 +38,7 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void updateCategory(CategoryDTO categoryDTO) {
         Category category = new Category();
         BeanUtils.copyProperties(categoryDTO, category);
@@ -41,6 +47,7 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void deleteCategory(Integer id) {
         // BaseMapper 自带 deleteById
         categoryMapper.deleteById(id);

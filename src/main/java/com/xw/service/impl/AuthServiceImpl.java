@@ -10,6 +10,8 @@ import com.xw.mapper.UserMapper;
 import com.xw.service.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.time.LocalDateTime;
 
 /**
@@ -22,6 +24,7 @@ public class AuthServiceImpl implements AuthService {
     private UserMapper userMapper;
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Result<String> register(RegisterDTO regRequest) {
         // 1. 模拟校验验证码（后期可接入阿里云/腾讯云短信服务）
         if (!"123456".equals(regRequest.getCaptcha())) {
@@ -77,6 +80,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Result<String> resetPassword(ResetPasswordDTO resetRequest) {
         // 1. 模拟校验验证码 [cite: 25]
         if (!"123456".equals(resetRequest.getCaptcha())) {

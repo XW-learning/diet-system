@@ -12,8 +12,6 @@ import java.util.List;
 @Data
 @Schema(description = "发布分享请求参数")
 public class ShareSaveDTO {
-    // 如果是修改，前端需要传 id；如果是新增，传 null
-    private Long id;
 
     @Schema(description = "发布用户ID", required = true)
     private Long userId;

@@ -40,14 +40,11 @@ public class TargetServiceImpl implements TargetService {
     }
 
     @Override
-    public Result<String> saveTarget(TargetDTO dto) {
-        if (dto.getUserId() == null) {
-            return Result.error("用户ID不能为空");
-        }
+    public Result<String> saveTarget(Long userId, TargetDTO dto) {
 
         // 1. 先查有没有旧目标
         LambdaQueryWrapper<UserTarget> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserTarget::getUserId, dto.getUserId())
+        wrapper.eq(UserTarget::getUserId, userId)
                 .orderByDesc(UserTarget::getCreateTime)
                 .last("LIMIT 1");
         UserTarget existing = targetMapper.selectOne(wrapper);

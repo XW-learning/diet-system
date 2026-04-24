@@ -10,8 +10,6 @@ import java.time.LocalDate;
 @Data
 @Schema(description = "用餐打卡请求参数")
 public class MealCheckInDTO {
-    @Schema(description = "用户ID", required = true)
-    private Long userId;
 
     @Schema(description = "菜品ID", required = true)
     private Long dishId;

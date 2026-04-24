@@ -21,19 +21,24 @@ import java.time.LocalDateTime;
 @Service
 public class InteractServiceImpl implements InteractService {
 
-    @Autowired private ShareLikeMapper likeMapper;
-    @Autowired private ShareCollectionMapper collectionMapper;
-    @Autowired private CommentMapper commentMapper;
-    @Autowired private ShareMapper shareMapper;
-    @Autowired private MessageMapper messageMapper;
+    @Autowired
+    private ShareLikeMapper likeMapper;
+    @Autowired
+    private ShareCollectionMapper collectionMapper;
+    @Autowired
+    private CommentMapper commentMapper;
+    @Autowired
+    private ShareMapper shareMapper;
+    @Autowired
+    private MessageMapper messageMapper;
 
     // ================= 1. 点赞/取消点赞 =================
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Result<String> toggleLike(InteractDTO dto) {
-        // 查询是否已经点赞过
+    public Result<String> toggleLike(Long userId, InteractDTO dto) { // 🌟 接收安全身份 userId
+        // 查询是否已经点赞过 (🌟 替换 dto.getUserId() 为参数 userId)
         ShareLike existLike = likeMapper.selectOne(new LambdaQueryWrapper<ShareLike>()
-                .eq(ShareLike::getUserId, dto.getUserId())
+                .eq(ShareLike::getUserId, userId)
                 .eq(ShareLike::getShareId, dto.getShareId()));
 
         UpdateWrapper<Share> updateWrapper = new UpdateWrapper<>();
@@ -43,7 +48,7 @@ public class InteractServiceImpl implements InteractService {
             // 💡 场景 A：已点赞 -> 执行取消点赞
             likeMapper.deleteById(existLike.getId());
 
-            // 🌟 架构师终极优化：处理 NULL 值，且保证数量绝不出现负数
+            // 处理 NULL 值，且保证数量绝不出现负数
             updateWrapper.setSql("like_count = GREATEST(IFNULL(like_count, 0) - 1, 0)");
             shareMapper.update(null, updateWrapper);
 
@@ -51,18 +56,18 @@ public class InteractServiceImpl implements InteractService {
         } else {
             // 💡 场景 B：未点赞 -> 执行点赞
             ShareLike newLike = new ShareLike();
-            newLike.setUserId(dto.getUserId());
+            newLike.setUserId(userId); // 🌟 强制绑定当前登录用户
             newLike.setShareId(dto.getShareId());
             newLike.setCreateTime(LocalDateTime.now());
             likeMapper.insert(newLike);
 
-            // 🌟 架构师终极优化：处理 NULL 值，安全 +1
+            // 处理 NULL 值，安全 +1
             updateWrapper.setSql("like_count = IFNULL(like_count, 0) + 1");
             shareMapper.update(null, updateWrapper);
 
             // 核心：给动态作者发消息 (不能自己给自己发通知)
-            if (!dto.getUserId().equals(dto.getAuthorId())) {
-                sendMessage(dto.getAuthorId(), dto.getUserId(), 1, dto.getShareId(), null);
+            if (!userId.equals(dto.getAuthorId())) { // 🌟 使用参数 userId
+                sendMessage(dto.getAuthorId(), userId, 1, dto.getShareId(), null);
             }
             return Result.success("点赞成功");
         }
@@ -71,9 +76,9 @@ public class InteractServiceImpl implements InteractService {
     // ================= 2. 收藏/取消收藏 =================
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Result<String> toggleCollect(InteractDTO dto) {
+    public Result<String> toggleCollect(Long userId, InteractDTO dto) { // 🌟 接收安全身份 userId
         ShareCollection existCollect = collectionMapper.selectOne(new LambdaQueryWrapper<ShareCollection>()
-                .eq(ShareCollection::getUserId, dto.getUserId())
+                .eq(ShareCollection::getUserId, userId) // 🌟 替换 dto.getUserId()
                 .eq(ShareCollection::getShareId, dto.getShareId()));
 
         UpdateWrapper<Share> updateWrapper = new UpdateWrapper<>();
@@ -89,7 +94,7 @@ public class InteractServiceImpl implements InteractService {
             return Result.success("已取消收藏");
         } else {
             ShareCollection newCollect = new ShareCollection();
-            newCollect.setUserId(dto.getUserId());
+            newCollect.setUserId(userId); // 🌟 强制绑定当前登录用户
             newCollect.setShareId(dto.getShareId());
             newCollect.setCreateTime(LocalDateTime.now());
             collectionMapper.insert(newCollect);
@@ -98,8 +103,8 @@ public class InteractServiceImpl implements InteractService {
             updateWrapper.setSql("collection_count = IFNULL(collection_count, 0) + 1");
             shareMapper.update(null, updateWrapper);
 
-            if (!dto.getUserId().equals(dto.getAuthorId())) {
-                sendMessage(dto.getAuthorId(), dto.getUserId(), 3, dto.getShareId(), null);
+            if (!userId.equals(dto.getAuthorId())) { // 🌟 使用参数 userId
+                sendMessage(dto.getAuthorId(), userId, 3, dto.getShareId(), null);
             }
             return Result.success("收藏成功");
         }
@@ -108,10 +113,14 @@ public class InteractServiceImpl implements InteractService {
     // ================= 3. 发布评论 =================
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Result<String> addComment(CommentSaveDTO dto) {
-        // 1. 保存评论实体 (MyBatis-Plus 会自动生成雪花算法 ID)
+    public Result<String> addComment(Long userId, CommentSaveDTO dto) { // 🌟 接收安全身份 userId
+        // 1. 保存评论实体
         Comment comment = new Comment();
         BeanUtils.copyProperties(dto, comment);
+
+        // 🌟 核心防线：即使黑客在传入的 dto 里伪造了别人的 userId，
+        // 我们在 BeanUtils 拷贝完之后，也必须用拦截器提供的安全 userId 强行覆盖掉它！
+        comment.setUserId(userId);
         comment.setCreateTime(LocalDateTime.now());
         commentMapper.insert(comment);
 
@@ -122,22 +131,22 @@ public class InteractServiceImpl implements InteractService {
         shareMapper.update(null, updateWrapper);
 
         // 3. 发送消息通知
-        // 逻辑：如果是二级评论(回复别人)，通知被回复的人；如果是一级评论，通知动态的作者
         Long receiverId = (dto.getReplyUserId() != null) ? dto.getReplyUserId() : dto.getAuthorId();
 
-        if (!dto.getUserId().equals(receiverId)) {
-            sendMessage(receiverId, dto.getUserId(), 2, dto.getShareId(), dto.getContent());
+        if (!userId.equals(receiverId)) { // 🌟 使用参数 userId
+            sendMessage(receiverId, userId, 2, dto.getShareId(), dto.getContent());
         }
 
         return Result.success("评论发布成功");
     }
 
     // ================= 4. 增加分享次数 =================
+    // 分享一般无需校验身份，任何登录/未登录用户点分享都可以+1，因此可保持不变
     @Override
     public Result<String> incrementShareCount(Long shareId) {
         UpdateWrapper<Share> updateWrapper = new UpdateWrapper<>();
         updateWrapper.eq("id", shareId)
-                .setSql("share_count = IFNULL(share_count, 0) + 1"); // 防 NULL 兜底
+                .setSql("share_count = IFNULL(share_count, 0) + 1");
         shareMapper.update(null, updateWrapper);
         return Result.success("分享数更新成功");
     }
@@ -150,10 +159,8 @@ public class InteractServiceImpl implements InteractService {
         msg.setType(type);
         msg.setSourceId(sourceId);
         msg.setContent(content);
-        msg.setIsRead(0); // 默认为未读
+        msg.setIsRead(0);
         msg.setCreateTime(LocalDateTime.now());
         messageMapper.insert(msg);
     }
-
-
 }

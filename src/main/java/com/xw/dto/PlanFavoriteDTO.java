@@ -9,8 +9,6 @@ import lombok.Data;
 @Data
 @Schema(description = "饮食方案收藏请求参数")
 public class PlanFavoriteDTO {
-    @Schema(description = "用户ID", required = true)
-    private Long userId;
 
     @Schema(description = "方案ID", required = true)
     private Long planId;

@@ -5,6 +5,9 @@ import com.xw.dto.LoginDTO;
 import com.xw.dto.RegisterDTO;
 import com.xw.dto.ResetPasswordDTO;
 
+/**
+ * @author XW
+ */
 public interface AuthService {
     /**
      * 用户注册 - 参数必须改为 RegisterDTO
