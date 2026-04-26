@@ -135,7 +135,8 @@ public class BodyServiceImpl implements BodyService {
         }
         LambdaQueryWrapper<UserBodyRecord> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(UserBodyRecord::getUserId, userId)
-                .orderByDesc(UserBodyRecord::getRecordTime);
+                .orderByDesc(UserBodyRecord::getRecordTime)
+                .last("LIMIT 7");
         List<UserBodyRecord> list = bodyRecordMapper.selectList(wrapper);
         return Result.success(list);
     }

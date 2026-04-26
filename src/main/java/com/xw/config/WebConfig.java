@@ -21,13 +21,13 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(loginInterceptor)
-                .addPathPatterns("/api/**") // 拦截所有 /api 下的请求
-                .excludePathPatterns(       // 排除不需要登录的接口
+                .addPathPatterns("/api/**")
+                // 排除登录接口和 Swagger 接口
+                .excludePathPatterns(
                         "/api/auth/login",
                         "/api/auth/register",
                         "/api/auth/resetPassword",
                         "/api/admin/login",
-                        // 排除 Swagger 接口文档路径
                         "/swagger-ui/**",
                         "/v3/api-docs/**"
                 );
