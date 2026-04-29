@@ -6,26 +6,79 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * 菜品实体类
+ * 对应数据库表 t_dish
+ *
+ * @author XW
+ */
 @Data
 @TableName("t_dish")
 public class Dish {
+    
+    /**
+     * 菜品ID
+     */
     @TableId
     private Long id;
+    
+    /**
+     * 菜品名称
+     */
     private String name;
-    private Integer categoryId; // 🌟 新增：所属分类ID
+    
+    /**
+     * 所属分类ID
+     */
+    private Integer categoryId;
+    
+    /**
+     * 菜品描述
+     */
     private String description;
-    private Integer calorie; // 原始热量（基于参考重量）
+    
+    /**
+     * 热量（基于参考重量）
+     */
+    private Integer calorie;
+    
+    /**
+     * 烹饪方法
+     */
     private String cookMethod;
 
-    // 宏量营养素（基于参考重量）
+    /**
+     * 碳水化合物含量（基于参考重量）
+     */
     private BigDecimal carbohydrate;
+    
+    /**
+     * 蛋白质含量（基于参考重量）
+     */
     private BigDecimal protein;
+    
+    /**
+     * 脂肪含量（基于参考重量）
+     */
     private BigDecimal fat;
+    
+    /**
+     * 膳食纤维含量（基于参考重量）
+     */
     private BigDecimal fiber;
 
-    // 🌟 新增字段
-    private BigDecimal refWeight; // 参考重量，例如 100.0
-    private String weightUnit;    // 单位，例如 "克"
+    /**
+     * 参考重量，例如 100.0
+     */
+    private BigDecimal refWeight;
+    
+    /**
+     * 重量单位，例如 "克"
+     */
+    private String weightUnit;
 
+    /**
+     * 创建时间
+     */
     private LocalDateTime createTime;
 }

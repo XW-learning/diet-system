@@ -7,33 +7,52 @@ import java.time.LocalDateTime;
 
 /**
  * 饮食方案实体类
- * 严格对应数据库 t_diet_plan 表
+ * 对应数据库表 t_diet_plan
+ *
  * @author XW
  */
 @Data
-@TableName("t_diet_plan") // 🌟 纠正表名
+@TableName("t_diet_plan")
 public class Plan {
+    
+    /**
+     * 方案ID
+     */
     @TableId
     private Long id;
 
-    // 方案名称
+    /**
+     * 方案名称
+     */
     private String name;
 
-    // 适用人群分类ID (外键，关联 t_user_category)
+    /**
+     * 适用人群分类ID，关联 t_user_category
+     */
     private Long categoryId;
 
-    // 最低卡路里
+    /**
+     * 最低卡路里
+     */
     private Integer calorieMin;
 
-    // 最高卡路里
+    /**
+     * 最高卡路里
+     */
     private Integer calorieMax;
 
-    // 饮食原则说明
+    /**
+     * 饮食原则说明
+     */
     private String principle;
 
-    // 状态：1启用 0禁用
+    /**
+     * 状态：1-启用，0-禁用
+     */
     private Integer status;
 
-    // 创建时间
+    /**
+     * 创建时间
+     */
     private LocalDateTime createTime;
 }

@@ -2,6 +2,7 @@ package com.xw.interceptor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xw.common.Result;
+import com.xw.utils.JwtUtil;
 import com.xw.utils.ThreadLocalUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -11,12 +12,24 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 /**
+ * 登录拦截器
+ * 验证用户Token并进行权限校验
+ *
  * @author XW
  */
 @Slf4j
 @Component
 public class LoginInterceptor implements HandlerInterceptor {
 
+    /**
+     * 请求前置处理
+     * 验证Token有效性并进行权限校验
+     *
+     * @param request  HTTP请求
+     * @param response HTTP响应
+     * @param handler  处理器
+     * @return true-放行，false-拦截
+     */
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
@@ -28,39 +41,58 @@ public class LoginInterceptor implements HandlerInterceptor {
 
         if (StringUtils.hasText(token)) {
             try {
-                // 🌟 终极修复 1：严格的身份隔离校验
-                boolean isAdminApi = requestURI.startsWith("/api/admin");
-                boolean isAdminToken = token.startsWith("admin_token");
+                // 1. 验证Token是否有效（签名正确且未过期）
+                if (!JwtUtil.validateToken(token)) {
+                    log.warn("Token验证失败：Token无效或已过期");
+                    return rejectRequest(response, "Token无效或已过期，请重新登录");
+                }
 
-                // 如果是访问管理员接口，但拿的不是管理员 Token -> 拦截！
+                // 2. 判断是否为管理员接口
+                boolean isAdminApi = requestURI.startsWith("/api/admin");
+                boolean isAdminToken = JwtUtil.isAdminToken(token);
+
+                // 3. 权限校验：普通用户不能访问管理员接口
                 if (isAdminApi && !isAdminToken) {
-                    log.warn("越权访问：试图用普通用户 Token 访问管理员接口！");
+                    log.warn("越权访问：试图用普通用户Token访问管理员接口");
                     return rejectRequest(response, "权限不足，拒绝访问");
                 }
 
-                // 如果是访问普通用户接口，但拿的是管理员 Token -> 拦截！
-                // (防止管理员 ID 覆盖了普通用户 ID 造成脏数据)
+                // 4. 权限校验：管理员不能访问普通用户接口
                 if (!isAdminApi && isAdminToken) {
-                    log.warn("越权访问：管理员 Token 不允许调用普通用户业务接口！");
+                    log.warn("越权访问：管理员Token不允许调用普通用户业务接口");
                     return rejectRequest(response, "管理员禁止进行前台用户操作");
                 }
 
-                // 🌟 终极修复 2：解析 ID
-                String[] parts = token.split("_");
-                if (parts.length > 1) {
-                    Long userId = Long.parseLong(parts[parts.length - 1]);
-                    ThreadLocalUtil.setCurrentUserId(userId);
-                    return true;
+                // 5. 从Token中提取用户ID
+                Long userId = isAdminToken ? 
+                    JwtUtil.getAdminIdFromToken(token) : 
+                    JwtUtil.getUserIdFromToken(token);
+
+                if (userId == null) {
+                    log.error("Token解析失败：无法提取用户ID");
+                    return rejectRequest(response, "Token解析失败");
                 }
+
+                // 6. 将用户ID存入ThreadLocal，供后续业务使用
+                ThreadLocalUtil.setCurrentUserId(userId);
+                return true;
+
             } catch (Exception e) {
-                log.error("Token 解析失败: {}", e.getMessage());
+                log.error("Token处理异常: {}", e.getMessage(), e);
+                return rejectRequest(response, "Token处理异常，请重新登录");
             }
         }
 
         return rejectRequest(response, "未登录或登录已过期");
     }
 
-    // 抽离出来的统一拦截响应方法，保持代码整洁
+    /**
+     * 统一拦截响应方法
+     *
+     * @param response HTTP响应
+     * @param msg      错误消息
+     * @return false
+     */
     private boolean rejectRequest(HttpServletResponse response, String msg) throws Exception {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType("application/json;charset=utf-8");
@@ -70,6 +102,14 @@ public class LoginInterceptor implements HandlerInterceptor {
         return false;
     }
 
+    /**
+     * 请求完成后清理ThreadLocal
+     *
+     * @param request  HTTP请求
+     * @param response HTTP响应
+     * @param handler  处理器
+     * @param ex       异常
+     */
     @Override
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
         ThreadLocalUtil.remove();

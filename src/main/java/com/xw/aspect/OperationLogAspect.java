@@ -12,6 +12,8 @@ import java.util.Arrays;
 
 /**
  * 操作日志切面
+ * 拦截带有@LogOperation注解的方法并记录日志
+ *
  * @author XW
  */
 @Slf4j
@@ -19,21 +21,30 @@ import java.util.Arrays;
 @Component
 public class OperationLogAspect {
 
-    // 拦截所有加了 @LogOperation 注解的方法
+    /**
+     * 环绕通知，拦截所有加了@LogOperation注解的方法
+     *
+     * @param joinPoint 切点
+     * @return 方法执行结果
+     */
     @Around("@annotation(com.xw.annotation.LogOperation)")
     public Object recordLog(ProceedingJoinPoint joinPoint) throws Throwable {
         long beginTime = System.currentTimeMillis();
 
-        // 1. 执行原有的核心业务方法
         Object result = joinPoint.proceed();
 
-        // 2. 执行完后，记录日志
         long time = System.currentTimeMillis() - beginTime;
         saveLog(joinPoint, time);
 
         return result;
     }
 
+    /**
+     * 保存日志信息
+     *
+     * @param joinPoint 切点
+     * @param time      执行耗时
+     */
     private void saveLog(ProceedingJoinPoint joinPoint, long time) {
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
         LogOperation annotation = signature.getMethod().getAnnotation(LogOperation.class);
@@ -42,7 +53,6 @@ public class OperationLogAspect {
         String className = joinPoint.getTarget().getClass().getName();
         String methodName = signature.getName();
         String params = Arrays.toString(joinPoint.getArgs());
-
 
         log.info("================ 操作日志 ================");
         log.info("业务行为: {}", operation);

@@ -13,6 +13,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 /**
+ * 用户控制器
+ * 处理用户相关的HTTP请求
+ *
  * @author XW
  */
 @Tag(name = "用户模块")
@@ -24,18 +27,23 @@ public class UserController {
     private UserService userService;
 
     /**
-     * 获取用户信息接口
-     * 目前通过 RequestParam 传递 ID，后期可改为从 Token 中解析
+     * 获取用户完整信息
+     *
+     * @return 用户完整信息VO
      */
-    @Operation(summary = "获取用户信息(全量聚合)")
+    @Operation(summary = "获取用户信息")
     @GetMapping("/info")
     public Result<UserVO> getUserInfo() {
         Long currentUserId = ThreadLocalUtil.getCurrentUserId();
-        // 打印id
-        System.out.println("用户id:" + currentUserId);
         return userService.getUserInfo(currentUserId);
     }
 
+    /**
+     * 保存用户基础信息
+     *
+     * @param updateDTO 用户更新信息DTO
+     * @return 操作结果
+     */
     @Operation(summary = "保存用户基础信息")
     @LogOperation("保存用户信息")
     @PostMapping("/save")
@@ -44,6 +52,12 @@ public class UserController {
         return userService.updateUserInfo(currentUserId, updateDTO);
     }
 
+    /**
+     * 修改密码
+     *
+     * @param dto 密码修改DTO
+     * @return 操作结果
+     */
     @Operation(summary = "修改密码")
     @LogOperation("修改密码")
     @PutMapping("/updatePassword")
@@ -52,6 +66,11 @@ public class UserController {
         return userService.updatePassword(userId, dto);
     }
 
+    /**
+     * 注销账户
+     *
+     * @return 操作结果
+     */
     @Operation(summary = "注销账户")
     @LogOperation("注销账户")
     @DeleteMapping("/delete")

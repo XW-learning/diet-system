@@ -8,14 +8,19 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 /**
+ * 用户Mapper接口
+ *
  * @author XW
  */
 @Mapper
 public interface UserMapper extends BaseMapper<User> {
 
     /**
-     * 自定义多表联查：一次性获取用户的全量聚合信息
-     * 巧妙使用 LEFT JOIN 和 LIMIT 1 子查询，直接映射为 UserVO
+     * 获取用户完整信息
+     * 多表联查，一次性获取用户的全量聚合信息
+     *
+     * @param userId 用户ID
+     * @return 用户完整信息VO
      */
     @Select("""
         SELECT

@@ -12,7 +12,8 @@ import java.util.stream.Collectors;
 
 /**
  * 全局异常处理器
- * 拦截 Controller 层抛出的异常，将其转化为统一的 Result 格式返回给前端
+ * 拦截Controller层抛出的异常，转化为统一的Result格式返回
+ *
  * @author XW
  */
 @Slf4j
@@ -20,7 +21,10 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
     /**
-     * 1. 拦截自定义的业务异常 (BusinessException)
+     * 处理自定义业务异常
+     *
+     * @param e 业务异常
+     * @return 错误响应
      */
     @ExceptionHandler(BusinessException.class)
     public Result<String> handleBusinessException(BusinessException e) {
@@ -33,11 +37,13 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 2. 拦截参数校验异常 (如 @NotBlank, @NotNull 等 javax.validation 注解未通过时抛出的异常)
+     * 处理参数校验异常
+     *
+     * @param e 参数校验异常
+     * @return 错误响应
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public Result<String> handleMethodArgumentNotValidException(MethodArgumentNotValidException e) {
-        // 将所有参数校验错误信息拼接起来
         String message = e.getBindingResult().getAllErrors().stream()
                 .map(DefaultMessageSourceResolvable::getDefaultMessage)
                 .collect(Collectors.joining(", "));
@@ -47,7 +53,10 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 3. 拦截表单绑定异常 (针对没有加 @RequestBody 的参数绑定异常)
+     * 处理表单绑定异常
+     *
+     * @param e 绑定异常
+     * @return 错误响应
      */
     @ExceptionHandler(BindException.class)
     public Result<String> handleBindException(BindException e) {
@@ -60,14 +69,14 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 4. 拦截所有的运行时异常 (RuntimeException) 和 未知异常 (兜底)
+     * 处理所有未捕获的异常
+     *
+     * @param e 异常
+     * @return 错误响应
      */
     @ExceptionHandler(Exception.class)
     public Result<String> handleException(Exception e) {
-        // 打印完整的异常堆栈信息到日志中，方便后端开发排查问题
         log.error("系统内部异常: ", e);
-
-        // 返回给前端的提示，屏蔽掉底层代码细节，只返回 Exception 的简短 message 或通用提示
         return Result.error("服务器开小差了，请稍后再试: " + e.getMessage());
     }
 }

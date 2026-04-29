@@ -11,6 +11,7 @@ import com.xw.entity.User;
 import com.xw.mapper.AdminMapper;
 import com.xw.mapper.UserMapper;
 import com.xw.service.AdminService;
+import com.xw.utils.JwtUtil;
 import com.xw.vo.AdminUserVO;
 import com.xw.vo.AdminVO;
 import com.xw.common.PageResult;
@@ -24,6 +25,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
+ * 管理员服务实现类
+ *
  * @author XW
  */
 @Service
@@ -35,6 +38,12 @@ public class AdminServiceImpl implements AdminService {
     @Autowired
     private UserMapper userMapper;
 
+    /**
+     * 管理员登录
+     *
+     * @param dto 登录请求DTO
+     * @return 登录结果，包含JWT Token
+     */
     @Override
     public Result<String> login(AdminLoginDTO dto) {
         LambdaQueryWrapper<Admin> wrapper = new LambdaQueryWrapper<>();
@@ -49,7 +58,8 @@ public class AdminServiceImpl implements AdminService {
             return Result.error("该管理员账号已被禁用");
         }
 
-        String token = "admin_token_" + admin.getId();
+        // 使用JwtUtil生成管理员JWT Token
+        String token = JwtUtil.generateAdminToken(admin.getId());
         return Result.success(token);
     }
 
@@ -62,7 +72,6 @@ public class AdminServiceImpl implements AdminService {
 
         AdminVO vo = new AdminVO();
         BeanUtils.copyProperties(admin, vo);
-        // ✅ 需要手动转换
         if (admin.getId() != null) {
             vo.setId(admin.getId().toString());
         }
@@ -110,7 +119,6 @@ public class AdminServiceImpl implements AdminService {
 
         List<AdminUserVO> voList = userPage.getRecords().stream().map(user -> {
             AdminUserVO vo = new AdminUserVO();
-            // ✅ 手动设置需要类型转换的字段
             vo.setId(user.getId() != null ? user.getId().toString() : null);
             vo.setPhone(user.getPhone());
             vo.setUsername(user.getUsername());
@@ -187,10 +195,8 @@ public class AdminServiceImpl implements AdminService {
         }
 
         AdminUserVO vo = new AdminUserVO();
-        // 先复制相同类型的字段
         BeanUtils.copyProperties(user, vo);
 
-        // ✅ 手动转换 Long -> String 类型的字段
         if (user.getId() != null) {
             vo.setId(user.getId().toString());
         }

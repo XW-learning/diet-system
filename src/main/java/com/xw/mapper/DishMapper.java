@@ -10,13 +10,18 @@ import org.apache.ibatis.annotations.Select;
 import java.util.List;
 
 /**
+ * 菜品Mapper接口
+ *
  * @author XW
  */
 @Mapper
 public interface DishMapper extends BaseMapper<Dish> {
 
     /**
-     * 联表查询：获取菜品的完整详情（含三大营养素）
+     * 获取菜品完整详情（含营养素信息）
+     *
+     * @param dishId 菜品ID
+     * @return 菜品详情VO
      */
     @Select("""
         SELECT
@@ -28,8 +33,11 @@ public interface DishMapper extends BaseMapper<Dish> {
     DishVO getDishDetailWithNutrition(@Param("dishId") Long dishId);
 
     /**
-     * 高级校验：检查某道菜的原材料是否与用户的过敏食材冲突
-     * 联表路线：菜品配料表(drm) -> 原材料表(r) -> 用户过敏表(ua)
+     * 检查菜品原材料是否与用户过敏食材冲突
+     *
+     * @param userId 用户ID
+     * @param dishId 菜品ID
+     * @return 冲突的原材料名称列表
      */
     @Select("""
         SELECT r.name

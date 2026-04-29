@@ -17,6 +17,9 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
+ * 饮食方案控制器
+ * 处理饮食方案相关的HTTP请求
+ *
  * @author XW
  */
 @Tag(name = "饮食方案模块")
@@ -27,15 +30,24 @@ public class PlanController {
     @Autowired
     private PlanService planService;
 
+    /**
+     * 获取推荐方案列表
+     *
+     * @return 推荐方案列表
+     */
     @Operation(summary = "获取推荐方案列表")
-    @GetMapping("/recommend") // 你的新路径
-    // 🌟 这里的返回值必须改成 List
+    @GetMapping("/recommend")
     public Result<List<Plan>> getRecommendPlan() {
         Long currentUserId = ThreadLocalUtil.getCurrentUserId();
         return planService.getRecommendPlan(currentUserId);
     }
 
-    @Operation(summary = "更换方案(随机刷新)")
+    /**
+     * 更换方案（随机刷新）
+     *
+     * @return 新的方案列表
+     */
+    @Operation(summary = "更换方案")
     @LogOperation("更换方案")
     @PostMapping("/refresh")
     public Result<List<Plan>> refreshPlan() {
@@ -43,12 +55,24 @@ public class PlanController {
         return planService.refreshPlan(currentUserId);
     }
 
-    @Operation(summary = "方案详情(含菜谱)")
+    /**
+     * 获取方案详情（含菜谱）
+     *
+     * @param planId 方案ID
+     * @return 方案详情
+     */
+    @Operation(summary = "方案详情")
     @GetMapping("/detail")
     public Result<PlanDetailVO> getPlanDetail(@RequestParam Long planId) {
         return planService.getPlanDetail(planId);
     }
 
+    /**
+     * 收藏或取消收藏方案
+     *
+     * @param dto 收藏操作DTO
+     * @return 操作结果
+     */
     @Operation(summary = "收藏/取消收藏方案")
     @LogOperation("收藏/取消收藏方案")
     @PostMapping("/favorite")
@@ -57,6 +81,11 @@ public class PlanController {
         return planService.favoritePlan(currentUserId, dto);
     }
 
+    /**
+     * 获取收藏列表
+     *
+     * @return 收藏的方案列表
+     */
     @Operation(summary = "收藏列表")
     @GetMapping("/favorites")
     public Result<List<Plan>> getFavoritePlans() {
@@ -64,12 +93,23 @@ public class PlanController {
         return planService.getFavoritePlans(currentUserId);
     }
 
-    @Operation(summary = "搜索饮食方案 (一框多搜)")
+    /**
+     * 搜索饮食方案
+     *
+     * @param searchDTO 搜索条件DTO
+     * @return 搜索结果列表
+     */
+    @Operation(summary = "搜索饮食方案")
     @GetMapping("/search")
     public Result<List<PlanVO>> searchPlans(PlanSearchDTO searchDTO) {
         return planService.searchPlans(searchDTO);
     }
 
+    /**
+     * 获取我的专属定制方案列表
+     *
+     * @return 定制方案列表
+     */
     @Operation(summary = "获取我的专属定制方案列表")
     @GetMapping("/custom/list")
     public Result<List<com.xw.entity.UserCustomPlan>> getCustomPlans() {
