@@ -1,41 +1,32 @@
+// filepath: xw/vo/DishVO.java
 package com.xw.vo;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
-
 import java.math.BigDecimal;
 
-/**
- * 菜品详情视图对象（包含营养成分）
- * @author XW
- */
 @Data
-@Schema(description = "菜品详情及营养成分")
+@Schema(description = "Dish VO")
 public class DishVO {
-    @Schema(description = "菜品ID")
+    @Schema(description = "ID")
     private Long id;
-
-    @Schema(description = "菜品名称")
+    @Schema(description = "Name")
     private String name;
-
-    @Schema(description = "菜品描述")
+    @Schema(description = "Description")
     private String description;
-
-    @Schema(description = "卡路里(千卡)")
+    @Schema(description = "Calorie")
     private Integer calorie;
-
-    @Schema(description = "烹饪方法")
+    @Schema(description = "Cook Method")
     private String cookMethod;
-
-    @Schema(description = "蛋白质(g)")
+    @Schema(description = "Protein (g)")
     private BigDecimal protein;
-
-    @Schema(description = "脂肪(g)")
+    @Schema(description = "Fat (g)")
     private BigDecimal fat;
-
-    @Schema(description = "碳水化合物(g)")
+    @Schema(description = "Carbohydrate (g)")
     private BigDecimal carbohydrate;
-
-    @Schema(description = "膳食纤维(g)")
+    @Schema(description = "Fiber (g)")
     private BigDecimal fiber;
+    private BigDecimal refWeight;
+    private String weightUnit;
+    private String imageUrl;
 }

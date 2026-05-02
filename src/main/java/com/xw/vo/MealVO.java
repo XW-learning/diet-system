@@ -1,30 +1,33 @@
+// filepath: xw/vo/MealVO.java
 package com.xw.vo;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+import java.math.BigDecimal;
 
 /**
- * 方案详情中的单道菜品视图对象
  * @author XW
  */
 @Data
-@Schema(description = "餐次菜品详情视图对象")
+@Schema(description = "Meal VO")
 public class MealVO {
-    @Schema(description = "餐次类型：1-早餐 2-午餐 3-晚餐 4-加餐")
+    @Schema(description = "Day Number")
+    private Integer dayNumber;
+    @Schema(description = "Meal Type")
     private Integer mealType;
-
-    @Schema(description = "菜品ID")
+    @Schema(description = "Dish ID")
     private Long dishId;
-
-    @Schema(description = "菜品名称")
+    @Schema(description = "Dish Name")
     private String dishName;
-
-    @Schema(description = "菜品描述")
+    @Schema(description = "Description")
     private String description;
-
-    @Schema(description = "卡路里(千卡)")
+    @Schema(description = "Calorie")
     private Integer calorie;
-
-    @Schema(description = "烹饪方法")
+    @Schema(description = "Cook Method")
     private String cookMethod;
+    private String dishImage;
+    private BigDecimal weight;
+    private BigDecimal carbohydrate;
+    private BigDecimal protein;
+    private BigDecimal fat;
 }

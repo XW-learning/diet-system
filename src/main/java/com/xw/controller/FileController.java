@@ -1,7 +1,7 @@
-package com.xw.controller; // 替换为你的实际包名
+package com.xw.controller;
 
 import com.xw.annotation.LogOperation;
-import com.xw.common.Result; // 替换为你实际的 Result 路径
+import com.xw.common.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -10,53 +10,56 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-
 import java.io.File;
 import java.io.IOException;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/upload") // 对应前端调用的 /api/upload (因为前端有 /api 代理)
+@RequestMapping("/api/upload")
 public class FileController {
 
-    // 获取当前项目运行的根目录，并在其下创建一个 uploads 文件夹用来存图片
+    // 基础存储路径
     private static final String UPLOAD_DIR = System.getProperty("user.dir") + "/uploads/";
 
     @Operation(summary = "上传文件")
     @LogOperation("上传文件")
     @PostMapping
     public Result<String> upload(@RequestParam("file") MultipartFile file, HttpServletRequest request) {
-        System.out.println("接收到文件上传请求");
-        System.out.println("file: " + file);
         if (file.isEmpty()) {
             return Result.error("上传失败，请选择文件");
         }
 
         try {
-            // 1. 确保存储文件夹存在，不存在则创建
-            File dir = new File(UPLOAD_DIR);
+            // 1. 动态生成日期目录 (例如: "2024/05/20/")
+            String datePath = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd")) + "/";
+
+            // 2. 检查并创建带有日期的子目录
+            File dir = new File(UPLOAD_DIR + datePath);
             if (!dir.exists()) {
-                dir.mkdirs();
+                dir.mkdirs(); // mkdirs() 会级联创建所有不存在的父目录
             }
 
-            // 2. 获取原始文件名并提取后缀 (例如: .jpg, .png)
+            // 3. 处理文件后缀并生成新的 UUID 文件名
             String originalFilename = file.getOriginalFilename();
             String extension = "";
             if (originalFilename != null && originalFilename.contains(".")) {
                 extension = originalFilename.substring(originalFilename.lastIndexOf("."));
             }
-
-            // 3. 使用 UUID 生成新的文件名，防止文件名重复覆盖
             String newFileName = UUID.randomUUID().toString() + extension;
 
-            // 4. 将文件保存到指定目录
-            File dest = new File(UPLOAD_DIR + newFileName);
+            // 4. 将文件保存到具体的日期子目录中
+            File dest = new File(UPLOAD_DIR + datePath + newFileName);
             file.transferTo(dest);
 
-            // 5. 拼接图片的访问 URL
-            // 假设你的后端运行在 8080 端口，前端代理会把 /api 转发过来
-            // 所以我们返回一个相对根路径的地址 /uploads/xxx.jpg，这样前端可以直接渲染
-            String imageUrl = "http://localhost:8080/uploads/" + newFileName;
+            // 5. 动态拼接返回的 URL（解决 localhost 写死导致手机端无法访问的问题）
+            String scheme = request.getScheme();             // http
+            String serverName = request.getServerName();     // 获取真实的IP或域名
+            int serverPort = request.getServerPort();        // 8080
+
+            // 最终URL示例: http://192.168.1.100:8080/uploads/2024/05/20/xxxx.jpg
+            String imageUrl = scheme + "://" + serverName + ":" + serverPort + "/uploads/" + datePath + newFileName;
 
             return Result.success(imageUrl);
 
