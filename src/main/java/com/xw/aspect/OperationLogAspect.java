@@ -30,9 +30,7 @@ public class OperationLogAspect {
     @Around("@annotation(com.xw.annotation.LogOperation)")
     public Object recordLog(ProceedingJoinPoint joinPoint) throws Throwable {
         long beginTime = System.currentTimeMillis();
-
         Object result = joinPoint.proceed();
-
         long time = System.currentTimeMillis() - beginTime;
         saveLog(joinPoint, time);
 
