@@ -34,6 +34,8 @@ public class PlanServiceImpl implements PlanService {
     private UserPreferenceMapper preferenceMapper;
     @Autowired
     private UserCustomPlanMapper customPlanMapper;
+    @Autowired
+    private UserPlanRecordMapper userPlanRecordMapper;
 
     @Override
     public Result<List<Plan>> getRecommendPlan(Long userId) {
@@ -210,5 +212,45 @@ public class PlanServiceImpl implements PlanService {
                 .orderByDesc(com.xw.entity.UserCustomPlan::getCreateTime);
         List<com.xw.entity.UserCustomPlan> customPlans = customPlanMapper.selectList(wrapper);
         return Result.success(customPlans);
+    }
+
+    @Override
+    public Result<String> activatePlan(Long userId, Long planId) {
+        Plan plan = planMapper.selectById(planId);
+        if (plan == null) return Result.error("Plan not found");
+
+        LambdaQueryWrapper<UserPlanRecord> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(UserPlanRecord::getUserId, userId)
+                .eq(UserPlanRecord::getStatus, 1);
+        UserPlanRecord activeRecord = userPlanRecordMapper.selectOne(queryWrapper);
+        if (activeRecord != null) {
+            activeRecord.setStatus(0);
+            userPlanRecordMapper.updateById(activeRecord);
+        }
+
+        UserPlanRecord newRecord = new UserPlanRecord();
+        newRecord.setUserId(userId);
+        newRecord.setPlanId(planId);
+        newRecord.setStatus(1);
+        newRecord.setCreateTime(LocalDateTime.now());
+        userPlanRecordMapper.insert(newRecord);
+
+        plan.setUsageCount((plan.getUsageCount() == null ? 0 : plan.getUsageCount()) + 1);
+        planMapper.updateById(plan);
+
+        return Result.success("Recipe plan activated successfully");
+    }
+
+    @Override
+    public Result<PlanDetailVO> getActivePlan(Long userId) {
+        LambdaQueryWrapper<UserPlanRecord> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(UserPlanRecord::getUserId, userId)
+                .eq(UserPlanRecord::getStatus, 1)
+                .orderByDesc(UserPlanRecord::getCreateTime)
+                .last("LIMIT 1");
+        UserPlanRecord activeRecord = userPlanRecordMapper.selectOne(queryWrapper);
+        if (activeRecord == null) return Result.error("No active plan");
+
+        return getPlanDetail(activeRecord.getPlanId());
     }
 }

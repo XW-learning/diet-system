@@ -30,4 +30,8 @@ public interface PlanService {
     Result<List<PlanVO>> searchPlans(PlanSearchDTO dto);
 
     Result<List<UserCustomPlan>> getCustomPlans(Long userId);
+
+    Result<String> activatePlan(Long userId, Long planId);
+
+    Result<PlanDetailVO> getActivePlan(Long userId);
 }

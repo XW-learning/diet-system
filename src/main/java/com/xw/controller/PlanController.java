@@ -2,6 +2,7 @@ package com.xw.controller;
 
 import com.xw.annotation.LogOperation;
 import com.xw.common.Result;
+import com.xw.dto.PlanActivateDTO;
 import com.xw.dto.PlanFavoriteDTO;
 import com.xw.dto.PlanSearchDTO;
 import com.xw.entity.Plan;
@@ -115,5 +116,31 @@ public class PlanController {
     public Result<List<com.xw.entity.UserCustomPlan>> getCustomPlans() {
         Long currentUserId = ThreadLocalUtil.getCurrentUserId();
         return planService.getCustomPlans(currentUserId);
+    }
+
+    /**
+     * 设置为我的食谱计划
+     *
+     * @param dto 激活方案DTO
+     * @return 操作结果
+     */
+    @Operation(summary = "设置为我的食谱计划")
+    @LogOperation("设置食谱计划")
+    @PostMapping("/activate")
+    public Result<String> activatePlan(@RequestBody PlanActivateDTO dto) {
+        Long currentUserId = ThreadLocalUtil.getCurrentUserId();
+        return planService.activatePlan(currentUserId, dto.getPlanId());
+    }
+
+    /**
+     * 获取当前激活的食谱计划
+     *
+     * @return 当前激活的方案详情
+     */
+    @Operation(summary = "获取当前激活的食谱计划")
+    @GetMapping("/active")
+    public Result<PlanDetailVO> getActivePlan() {
+        Long currentUserId = ThreadLocalUtil.getCurrentUserId();
+        return planService.getActivePlan(currentUserId);
     }
 }
