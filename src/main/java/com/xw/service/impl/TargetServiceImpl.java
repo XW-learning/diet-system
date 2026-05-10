@@ -1,9 +1,9 @@
 package com.xw.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.xw.common.Result;
 import com.xw.dto.TargetDTO;
 import com.xw.entity.UserTarget;
+import com.xw.exception.BusinessException;
 import com.xw.mapper.UserTargetMapper;
 import com.xw.service.TargetService;
 import org.springframework.beans.BeanUtils;
@@ -22,27 +22,24 @@ public class TargetServiceImpl implements TargetService {
     private UserTargetMapper targetMapper;
 
     @Override
-    public Result<UserTarget> getTarget(Long userId) {
+    public UserTarget getTarget(Long userId) {
         if (userId == null) {
-            return Result.error("用户ID不能为空");
+            throw new BusinessException("用户ID不能为空");
         }
 
-        // 查询最新的一个目标 (按时间倒序排，取第一条)
         LambdaQueryWrapper<UserTarget> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(UserTarget::getUserId, userId)
                 .orderByDesc(UserTarget::getCreateTime)
-                .last("LIMIT 1"); // 🌟 魔法指令：只取最新的一条
+                .last("LIMIT 1");
 
         UserTarget target = targetMapper.selectOne(wrapper);
 
-        // 如果没设过目标，返回空对象防前端报错
-        return Result.success(target != null ? target : new UserTarget());
+        return target != null ? target : new UserTarget();
     }
 
     @Override
-    public Result<String> saveTarget(Long userId, TargetDTO dto) {
+    public String saveTarget(Long userId, TargetDTO dto) {
 
-        // 1. 先查有没有旧目标
         LambdaQueryWrapper<UserTarget> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(UserTarget::getUserId, userId)
                 .orderByDesc(UserTarget::getCreateTime)
@@ -50,33 +47,31 @@ public class TargetServiceImpl implements TargetService {
         UserTarget existing = targetMapper.selectOne(wrapper);
 
         if (existing != null) {
-            // 2. 有则更新 (SaveOrUpdate)
             existing.setTargetWeight(dto.getTargetWeight());
             existing.setTargetDate(dto.getTargetDate());
             existing.setGoalType(dto.getGoalType());
             targetMapper.updateById(existing);
-            return Result.success("目标更新成功，继续加油！");
+            return "目标更新成功，继续加油！";
         } else {
-            // 3. 无则插入
             UserTarget newTarget = new UserTarget();
             BeanUtils.copyProperties(dto, newTarget);
             newTarget.setCreateTime(LocalDateTime.now());
             targetMapper.insert(newTarget);
-            return Result.success("新目标设定成功，向着目标冲刺吧！");
+            return "新目标设定成功，向着目标冲刺吧！";
         }
     }
 
     @Override
-    public Result<String> deleteTarget(Long userId) {
+    public String deleteTarget(Long userId) {
         if (userId == null) {
-            return Result.error("用户ID不能为空");
+            throw new BusinessException("用户ID不能为空");
         }
 
-        // 删除该用户的所有目标记录
         LambdaQueryWrapper<UserTarget> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(UserTarget::getUserId, userId);
         int rows = targetMapper.delete(wrapper);
 
-        return rows > 0 ? Result.success("目标已清除") : Result.error("您还没有设定过目标");
+        if (rows <= 0) throw new BusinessException("您还没有设定过目标");
+        return "目标已清除";
     }
 }

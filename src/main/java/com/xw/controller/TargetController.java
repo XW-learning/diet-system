@@ -26,7 +26,7 @@ public class TargetController {
     @GetMapping("/info")
     public Result<UserTarget> getTarget() {
         Long currentUserId = ThreadLocalUtil.getCurrentUserId();
-        return targetService.getTarget(currentUserId);
+        return Result.success(targetService.getTarget(currentUserId));
     }
 
     @Operation(summary = "保存或修改目标")
@@ -34,7 +34,7 @@ public class TargetController {
     @PostMapping("/save")
     public Result<String> saveTarget(@RequestBody TargetDTO dto) {
         Long currentUserId = ThreadLocalUtil.getCurrentUserId();
-        return targetService.saveTarget(currentUserId, dto);
+        return Result.success(targetService.saveTarget(currentUserId, dto));
     }
 
     @Operation(summary = "删除用户目标")
@@ -42,6 +42,6 @@ public class TargetController {
     @DeleteMapping("/delete")
     public Result<String> deleteTarget() {
         Long currentUserId = ThreadLocalUtil.getCurrentUserId();
-        return targetService.deleteTarget(currentUserId);
+        return Result.success(targetService.deleteTarget(currentUserId));
     }
 }

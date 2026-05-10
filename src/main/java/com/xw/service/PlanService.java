@@ -1,6 +1,5 @@
 package com.xw.service;
 
-import com.xw.common.Result;
 import com.xw.dto.PlanFavoriteDTO;
 import com.xw.dto.PlanSearchDTO;
 import com.xw.entity.Plan;
@@ -16,22 +15,21 @@ import java.util.List;
  */
 public interface PlanService {
 
-    Result<List<Plan>> getRecommendPlan(Long userId);
+    List<Plan> getRecommendPlan(Long userId);
 
-    Result<List<Plan>> refreshPlan(Long userId);
+    List<Plan> refreshPlan(Long userId);
 
-    Result<PlanDetailVO> getPlanDetail(Long planId);
+    PlanDetailVO getPlanDetail(Long planId);
 
-    // 🌟 核心安全修改：加入上下文 userId，不再信任 DTO 传参
-    Result<String> favoritePlan(Long userId, PlanFavoriteDTO dto);
+    String favoritePlan(Long userId, PlanFavoriteDTO dto);
 
-    Result<List<Plan>> getFavoritePlans(Long userId);
+    List<Plan> getFavoritePlans(Long userId);
 
-    Result<List<PlanVO>> searchPlans(PlanSearchDTO dto);
+    List<PlanVO> searchPlans(PlanSearchDTO dto);
 
-    Result<List<UserCustomPlan>> getCustomPlans(Long userId);
+    List<UserCustomPlan> getCustomPlans(Long userId);
 
-    Result<String> activatePlan(Long userId, Long planId);
+    String activatePlan(Long userId, Long planId);
 
-    Result<PlanDetailVO> getActivePlan(Long userId);
+    PlanDetailVO getActivePlan(Long userId);
 }

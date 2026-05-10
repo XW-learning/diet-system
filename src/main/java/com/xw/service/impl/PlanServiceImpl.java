@@ -1,11 +1,10 @@
-// filepath: xw/service/impl/PlanServiceImpl.java
 package com.xw.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.xw.common.Result;
 import com.xw.dto.PlanFavoriteDTO;
 import com.xw.dto.PlanSearchDTO;
 import com.xw.entity.*;
+import com.xw.exception.BusinessException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -38,21 +37,20 @@ public class PlanServiceImpl implements PlanService {
     private UserPlanRecordMapper userPlanRecordMapper;
 
     @Override
-    public Result<List<Plan>> getRecommendPlan(Long userId) {
+    public List<Plan> getRecommendPlan(Long userId) {
         return generateIntelligentPlans(userId, false);
     }
 
     @Override
-    public Result<List<Plan>> refreshPlan(Long userId) {
+    public List<Plan> refreshPlan(Long userId) {
         return generateIntelligentPlans(userId, true);
     }
 
-    private Result<List<Plan>> generateIntelligentPlans(Long userId, boolean isRandom) {
+    private List<Plan> generateIntelligentPlans(Long userId, boolean isRandom) {
         User user = userMapper.selectById(userId);
         if (user == null || user.getCategoryId() == null) {
-            return Result.error("Cannot fetch recommended plan because user category is missing.");
+            throw new BusinessException("Cannot fetch recommended plan because user category is missing.");
         }
-
         LambdaQueryWrapper<UserBodyRecord> bodyWrapper = new LambdaQueryWrapper<>();
         bodyWrapper.eq(UserBodyRecord::getUserId, userId).orderByDesc(UserBodyRecord::getRecordTime).last("LIMIT 1");
         UserBodyRecord latestBody = bodyRecordMapper.selectOne(bodyWrapper);
@@ -89,7 +87,7 @@ public class PlanServiceImpl implements PlanService {
             if (hasPref) {
                 applySorting(level1Wrapper, isRandom);
                 List<Plan> level1Plans = planMapper.selectList(level1Wrapper);
-                if (!level1Plans.isEmpty()) return Result.success(level1Plans);
+                if (!level1Plans.isEmpty()) return level1Plans;
             }
         }
 
@@ -97,7 +95,7 @@ public class PlanServiceImpl implements PlanService {
         applySorting(level2Wrapper, isRandom);
         List<Plan> level2Plans = planMapper.selectList(level2Wrapper);
         if (!level2Plans.isEmpty()) {
-            return Result.success(level2Plans);
+            return level2Plans;
         }
 
         LambdaQueryWrapper<Plan> level3Wrapper = new LambdaQueryWrapper<>();
@@ -105,8 +103,8 @@ public class PlanServiceImpl implements PlanService {
         applySorting(level3Wrapper, isRandom);
         List<Plan> level3Plans = planMapper.selectList(level3Wrapper);
 
-        if (level3Plans.isEmpty()) return Result.error("No plan available.");
-        return Result.success(level3Plans);
+        if (level3Plans.isEmpty()) throw new BusinessException("No plan available.");
+        return level3Plans;
     }
 
     private void applySorting(LambdaQueryWrapper<Plan> wrapper, boolean isRandom) {
@@ -118,57 +116,53 @@ public class PlanServiceImpl implements PlanService {
     }
 
     @Override
-    public Result<PlanDetailVO> getPlanDetail(Long planId) {
-        if (planId == null) return Result.error("Missing ID");
+    public PlanDetailVO getPlanDetail(Long planId) {
+        if (planId == null) throw new BusinessException("Missing ID");
         Plan plan = planMapper.selectById(planId);
-        if (plan == null) return Result.error("Plan not found");
-
+        if (plan == null) throw new BusinessException("Plan not found");
         List<MealVO> meals = planMapper.getPlanMeals(planId);
-
         PlanDetailVO detailVO = new PlanDetailVO();
         detailVO.setPlan(plan);
         detailVO.setMeals(meals);
-        return Result.success(detailVO);
+        return detailVO;
     }
 
     @Override
-    public Result<String> favoritePlan(Long userId, PlanFavoriteDTO dto) {
+    public String favoritePlan(Long userId, PlanFavoriteDTO dto) {
         if (dto.getPlanId() == null || dto.getAction() == null) {
-            return Result.error("Missing parameters");
+            throw new BusinessException("Missing parameters");
         }
-
         LambdaQueryWrapper<UserPlanFavorite> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(UserPlanFavorite::getUserId, userId)
                 .eq(UserPlanFavorite::getTargetId, dto.getPlanId())
                 .eq(UserPlanFavorite::getType, 2);
-
         UserPlanFavorite existingFav = favoriteMapper.selectOne(wrapper);
 
         if (dto.getAction() == 1) {
-            if (existingFav != null) return Result.error("Already collected");
+            if (existingFav != null) throw new BusinessException("Already collected");
             UserPlanFavorite newFav = new UserPlanFavorite();
             newFav.setUserId(userId);
             newFav.setTargetId(dto.getPlanId());
             newFav.setType(2);
             newFav.setCreateTime(LocalDateTime.now());
             favoriteMapper.insert(newFav);
-            return Result.success("Collected successfully");
+            return "Collected successfully";
         } else if (dto.getAction() == 0) {
-            if (existingFav == null) return Result.error("Not collected yet");
+            if (existingFav == null) throw new BusinessException("Not collected yet");
             favoriteMapper.deleteById(existingFav.getId());
-            return Result.success("Canceled successfully");
+            return "Canceled successfully";
         }
-        return Result.error("Invalid action");
+        throw new BusinessException("Invalid action");
     }
 
     @Override
-    public Result<List<Plan>> getFavoritePlans(Long userId) {
+    public List<Plan> getFavoritePlans(Long userId) {
         List<Plan> favoritePlans = planMapper.getUserFavoritePlans(userId);
-        return Result.success(favoritePlans);
+        return favoritePlans;
     }
 
     @Override
-    public Result<List<PlanVO>> searchPlans(PlanSearchDTO dto) {
+    public List<PlanVO> searchPlans(PlanSearchDTO dto) {
         LambdaQueryWrapper<Plan> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Plan::getStatus, 1);
         if (dto.getKeyword() != null && !dto.getKeyword().trim().isEmpty()) {
@@ -202,22 +196,22 @@ public class PlanServiceImpl implements PlanService {
             }
             voList.add(vo);
         }
-        return Result.success(voList);
+        return voList;
     }
 
     @Override
-    public Result<List<com.xw.entity.UserCustomPlan>> getCustomPlans(Long userId) {
+    public List<com.xw.entity.UserCustomPlan> getCustomPlans(Long userId) {
         LambdaQueryWrapper<com.xw.entity.UserCustomPlan> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(com.xw.entity.UserCustomPlan::getUserId, userId)
                 .orderByDesc(com.xw.entity.UserCustomPlan::getCreateTime);
         List<com.xw.entity.UserCustomPlan> customPlans = customPlanMapper.selectList(wrapper);
-        return Result.success(customPlans);
+        return customPlans;
     }
 
     @Override
-    public Result<String> activatePlan(Long userId, Long planId) {
+    public String activatePlan(Long userId, Long planId) {
         Plan plan = planMapper.selectById(planId);
-        if (plan == null) return Result.error("Plan not found");
+        if (plan == null) throw new BusinessException("Plan not found");
 
         LambdaQueryWrapper<UserPlanRecord> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(UserPlanRecord::getUserId, userId)
@@ -238,18 +232,18 @@ public class PlanServiceImpl implements PlanService {
         plan.setUsageCount((plan.getUsageCount() == null ? 0 : plan.getUsageCount()) + 1);
         planMapper.updateById(plan);
 
-        return Result.success("Recipe plan activated successfully");
+        return "Recipe plan activated successfully";
     }
 
     @Override
-    public Result<PlanDetailVO> getActivePlan(Long userId) {
+    public PlanDetailVO getActivePlan(Long userId) {
         LambdaQueryWrapper<UserPlanRecord> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(UserPlanRecord::getUserId, userId)
                 .eq(UserPlanRecord::getStatus, 1)
                 .orderByDesc(UserPlanRecord::getCreateTime)
                 .last("LIMIT 1");
         UserPlanRecord activeRecord = userPlanRecordMapper.selectOne(queryWrapper);
-        if (activeRecord == null) return Result.error("No active plan");
+        if (activeRecord == null) throw new BusinessException("No active plan");
 
         return getPlanDetail(activeRecord.getPlanId());
     }

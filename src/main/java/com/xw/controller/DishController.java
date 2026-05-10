@@ -33,15 +33,13 @@ public class DishController {
     @Operation(summary = "获取可选菜品列表 (可按分类和关键词搜索)")
     @GetMapping("/list")
     public Result list(@RequestParam(required = false) String keyword,
-                       @RequestParam(required = false) Integer categoryId, // 🌟 新增接收分类ID
+                       @RequestParam(required = false) Integer categoryId,
                        @RequestHeader("token") String token) {
 
-        // 1. 调用更新后的 Service 方法
         List<DishVO> dishList = dishService.searchDish(keyword, categoryId);
 
-        // 2. 保存搜索历史逻辑保持不变
         if (keyword != null && !keyword.trim().isEmpty()) {
-            Long userId = 1L; // 实际逻辑应解析token获取
+            Long userId = 1L;
             searchHistoryService.saveOrUpdateHistory(userId, keyword);
         }
 
@@ -53,7 +51,7 @@ public class DishController {
     @PostMapping("/replace")
     public Result<DishVO> replaceDish(@RequestBody DishReplaceDTO dto) {
         Long userId = ThreadLocalUtil.getCurrentUserId();
-        return dishService.replaceDish(userId, dto);
+        return Result.success(dishService.replaceDish(userId, dto));
     }
 
     @Operation(summary = "确认保存为专属方案")
@@ -61,6 +59,6 @@ public class DishController {
     @PostMapping("/custom/save")
     public Result<String> saveCustomPlan(@RequestBody CustomPlanSaveDTO dto) {
         Long userId = ThreadLocalUtil.getCurrentUserId();
-        return dishService.saveCustomPlan(userId, dto);
+        return Result.success(dishService.saveCustomPlan(userId, dto));
     }
 }

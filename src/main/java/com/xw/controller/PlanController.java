@@ -40,7 +40,7 @@ public class PlanController {
     @GetMapping("/recommend")
     public Result<List<Plan>> getRecommendPlan() {
         Long currentUserId = ThreadLocalUtil.getCurrentUserId();
-        return planService.getRecommendPlan(currentUserId);
+        return Result.success(planService.getRecommendPlan(currentUserId));
     }
 
     /**
@@ -53,7 +53,7 @@ public class PlanController {
     @PostMapping("/refresh")
     public Result<List<Plan>> refreshPlan() {
         Long currentUserId = ThreadLocalUtil.getCurrentUserId();
-        return planService.refreshPlan(currentUserId);
+        return Result.success(planService.refreshPlan(currentUserId));
     }
 
     /**
@@ -65,7 +65,7 @@ public class PlanController {
     @Operation(summary = "方案详情")
     @GetMapping("/detail")
     public Result<PlanDetailVO> getPlanDetail(@RequestParam Long planId) {
-        return planService.getPlanDetail(planId);
+        return Result.success(planService.getPlanDetail(planId));
     }
 
     /**
@@ -79,7 +79,7 @@ public class PlanController {
     @PostMapping("/favorite")
     public Result<String> favoritePlan(@RequestBody PlanFavoriteDTO dto) {
         Long currentUserId = ThreadLocalUtil.getCurrentUserId();
-        return planService.favoritePlan(currentUserId, dto);
+        return Result.success(planService.favoritePlan(currentUserId, dto));
     }
 
     /**
@@ -91,7 +91,7 @@ public class PlanController {
     @GetMapping("/favorites")
     public Result<List<Plan>> getFavoritePlans() {
         Long currentUserId = ThreadLocalUtil.getCurrentUserId();
-        return planService.getFavoritePlans(currentUserId);
+        return Result.success(planService.getFavoritePlans(currentUserId));
     }
 
     /**
@@ -103,7 +103,7 @@ public class PlanController {
     @Operation(summary = "搜索饮食方案")
     @GetMapping("/search")
     public Result<List<PlanVO>> searchPlans(PlanSearchDTO searchDTO) {
-        return planService.searchPlans(searchDTO);
+        return Result.success(planService.searchPlans(searchDTO));
     }
 
     /**
@@ -115,7 +115,7 @@ public class PlanController {
     @GetMapping("/custom/list")
     public Result<List<com.xw.entity.UserCustomPlan>> getCustomPlans() {
         Long currentUserId = ThreadLocalUtil.getCurrentUserId();
-        return planService.getCustomPlans(currentUserId);
+        return Result.success(planService.getCustomPlans(currentUserId));
     }
 
     /**
@@ -129,7 +129,7 @@ public class PlanController {
     @PostMapping("/activate")
     public Result<String> activatePlan(@RequestBody PlanActivateDTO dto) {
         Long currentUserId = ThreadLocalUtil.getCurrentUserId();
-        return planService.activatePlan(currentUserId, dto.getPlanId());
+        return Result.success(planService.activatePlan(currentUserId, dto.getPlanId()));
     }
 
     /**
@@ -141,6 +141,6 @@ public class PlanController {
     @GetMapping("/active")
     public Result<PlanDetailVO> getActivePlan() {
         Long currentUserId = ThreadLocalUtil.getCurrentUserId();
-        return planService.getActivePlan(currentUserId);
+        return Result.success(planService.getActivePlan(currentUserId));
     }
 }

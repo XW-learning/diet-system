@@ -2,7 +2,6 @@ package com.xw.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
-import com.xw.common.Result;
 import com.xw.dto.CommentSaveDTO;
 import com.xw.dto.InteractDTO;
 import com.xw.entity.*;
@@ -32,11 +31,9 @@ public class InteractServiceImpl implements InteractService {
     @Autowired
     private MessageMapper messageMapper;
 
-    // ================= 1. 点赞/取消点赞 =================
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Result<String> toggleLike(Long userId, InteractDTO dto) { // 🌟 接收安全身份 userId
-        // 查询是否已经点赞过 (🌟 替换 dto.getUserId() 为参数 userId)
+    public String toggleLike(Long userId, InteractDTO dto) {
         ShareLike existLike = likeMapper.selectOne(new LambdaQueryWrapper<ShareLike>()
                 .eq(ShareLike::getUserId, userId)
                 .eq(ShareLike::getShareId, dto.getShareId()));
@@ -45,40 +42,34 @@ public class InteractServiceImpl implements InteractService {
         updateWrapper.eq("id", dto.getShareId());
 
         if (existLike != null) {
-            // 💡 场景 A：已点赞 -> 执行取消点赞
             likeMapper.deleteById(existLike.getId());
 
-            // 处理 NULL 值，且保证数量绝不出现负数
             updateWrapper.setSql("like_count = GREATEST(IFNULL(like_count, 0) - 1, 0)");
             shareMapper.update(null, updateWrapper);
 
-            return Result.success("已取消点赞");
+            return "已取消点赞";
         } else {
-            // 💡 场景 B：未点赞 -> 执行点赞
             ShareLike newLike = new ShareLike();
-            newLike.setUserId(userId); // 🌟 强制绑定当前登录用户
+            newLike.setUserId(userId);
             newLike.setShareId(dto.getShareId());
             newLike.setCreateTime(LocalDateTime.now());
             likeMapper.insert(newLike);
 
-            // 处理 NULL 值，安全 +1
             updateWrapper.setSql("like_count = IFNULL(like_count, 0) + 1");
             shareMapper.update(null, updateWrapper);
 
-            // 核心：给动态作者发消息 (不能自己给自己发通知)
-            if (!userId.equals(dto.getAuthorId())) { // 🌟 使用参数 userId
+            if (!userId.equals(dto.getAuthorId())) {
                 sendMessage(dto.getAuthorId(), userId, 1, dto.getShareId(), null);
             }
-            return Result.success("点赞成功");
+            return "点赞成功";
         }
     }
 
-    // ================= 2. 收藏/取消收藏 =================
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Result<String> toggleCollect(Long userId, InteractDTO dto) { // 🌟 接收安全身份 userId
+    public String toggleCollect(Long userId, InteractDTO dto) {
         ShareCollection existCollect = collectionMapper.selectOne(new LambdaQueryWrapper<ShareCollection>()
-                .eq(ShareCollection::getUserId, userId) // 🌟 替换 dto.getUserId()
+                .eq(ShareCollection::getUserId, userId)
                 .eq(ShareCollection::getShareId, dto.getShareId()));
 
         UpdateWrapper<Share> updateWrapper = new UpdateWrapper<>();
@@ -87,71 +78,60 @@ public class InteractServiceImpl implements InteractService {
         if (existCollect != null) {
             collectionMapper.deleteById(existCollect.getId());
 
-            // 防 NULL 且防负数兜底
             updateWrapper.setSql("collection_count = GREATEST(IFNULL(collection_count, 0) - 1, 0)");
             shareMapper.update(null, updateWrapper);
 
-            return Result.success("已取消收藏");
+            return "已取消收藏";
         } else {
             ShareCollection newCollect = new ShareCollection();
-            newCollect.setUserId(userId); // 🌟 强制绑定当前登录用户
+            newCollect.setUserId(userId);
             newCollect.setShareId(dto.getShareId());
             newCollect.setCreateTime(LocalDateTime.now());
             collectionMapper.insert(newCollect);
 
-            // 防 NULL 兜底
             updateWrapper.setSql("collection_count = IFNULL(collection_count, 0) + 1");
             shareMapper.update(null, updateWrapper);
 
-            if (!userId.equals(dto.getAuthorId())) { // 🌟 使用参数 userId
+            if (!userId.equals(dto.getAuthorId())) {
                 sendMessage(dto.getAuthorId(), userId, 3, dto.getShareId(), null);
             }
-            return Result.success("收藏成功");
+            return "收藏成功";
         }
     }
 
-    // ================= 3. 发布评论 =================
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Result<String> addComment(Long userId, CommentSaveDTO dto) { // 🌟 接收安全身份 userId
-        // 1. 保存评论实体
+    public String addComment(Long userId, CommentSaveDTO dto) {
         Comment comment = new Comment();
         BeanUtils.copyProperties(dto, comment);
 
-        // 🌟 核心防线：即使黑客在传入的 dto 里伪造了别人的 userId，
-        // 我们在 BeanUtils 拷贝完之后，也必须用拦截器提供的安全 userId 强行覆盖掉它！
         comment.setUserId(userId);
         comment.setCreateTime(LocalDateTime.now());
         commentMapper.insert(comment);
 
-        // 2. 动态的评论数 + 1 (防 NULL 兜底)
         UpdateWrapper<Share> updateWrapper = new UpdateWrapper<>();
         updateWrapper.eq("id", dto.getShareId())
                 .setSql("comment_count = IFNULL(comment_count, 0) + 1");
         shareMapper.update(null, updateWrapper);
 
-        // 3. 发送消息通知
         Long receiverId = (dto.getReplyUserId() != null) ? dto.getReplyUserId() : dto.getAuthorId();
 
-        if (!userId.equals(receiverId)) { // 🌟 使用参数 userId
+        if (!userId.equals(receiverId)) {
             sendMessage(receiverId, userId, 2, dto.getShareId(), dto.getContent());
         }
 
-        return Result.success("评论发布成功");
+        return "评论发布成功";
     }
 
-    // ================= 4. 增加分享次数 =================
-    // 分享一般无需校验身份，任何登录/未登录用户点分享都可以+1，因此可保持不变
     @Override
-    public Result<String> incrementShareCount(Long shareId) {
+    public String incrementShareCount(Long shareId) {
         UpdateWrapper<Share> updateWrapper = new UpdateWrapper<>();
         updateWrapper.eq("id", shareId)
                 .setSql("share_count = IFNULL(share_count, 0) + 1");
         shareMapper.update(null, updateWrapper);
-        return Result.success("分享数更新成功");
+        return "分享数更新成功";
     }
 
-    // ================= 架构师私有方法：统一发送消息 =================
     private void sendMessage(Long receiverId, Long senderId, Integer type, Long sourceId, String content) {
         Message msg = new Message();
         msg.setReceiverId(receiverId);

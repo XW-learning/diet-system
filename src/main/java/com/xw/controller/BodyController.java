@@ -33,14 +33,14 @@ public class BodyController {
     @PostMapping("/save")
     public Result<String> saveRecord(@RequestBody BodyRecordDTO dto) {
         Long currentUserId = ThreadLocalUtil.getCurrentUserId();
-        return bodyService.saveRecord(currentUserId, dto);
+        return Result.success(bodyService.saveRecord(currentUserId, dto));
     }
 
     @Operation(summary = "获取身材记录列表")
     @GetMapping("/list")
     public Result<List<UserBodyRecord>> getRecordList() {
         Long currentUserId = ThreadLocalUtil.getCurrentUserId();
-        return bodyService.getRecordList(currentUserId);
+        return Result.success(bodyService.getRecordList(currentUserId));
     }
 
     @Operation(summary = "删除身材记录")
@@ -48,7 +48,7 @@ public class BodyController {
     @DeleteMapping("/delete")
     public Result<String> deleteRecord(@RequestParam Long id) {
         Long userId = ThreadLocalUtil.getCurrentUserId();
-        return bodyService.deleteRecord(userId, id);
+        return Result.success(bodyService.deleteRecord(userId, id));
     }
 
     @Operation(summary = "获取经期记录(仅限最新一条)")

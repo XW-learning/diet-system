@@ -2,19 +2,19 @@ package com.xw.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.xw.common.Result;
+import com.xw.common.PageResult;
 import com.xw.dto.AdminLoginDTO;
 import com.xw.dto.AdminUpdatePasswordDTO;
 import com.xw.dto.AdminUserQueryDTO;
 import com.xw.entity.Admin;
 import com.xw.entity.User;
+import com.xw.exception.BusinessException;
 import com.xw.mapper.AdminMapper;
 import com.xw.mapper.UserMapper;
 import com.xw.service.AdminService;
 import com.xw.utils.JwtUtil;
 import com.xw.vo.AdminUserVO;
 import com.xw.vo.AdminVO;
-import com.xw.common.PageResult;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -24,11 +24,6 @@ import org.springframework.util.StringUtils;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * 管理员服务实现类
- *
- * @author XW
- */
 @Service
 public class AdminServiceImpl implements AdminService {
 
@@ -38,56 +33,48 @@ public class AdminServiceImpl implements AdminService {
     @Autowired
     private UserMapper userMapper;
 
-    /**
-     * 管理员登录
-     *
-     * @param dto 登录请求DTO
-     * @return 登录结果，包含JWT Token
-     */
     @Override
-    public Result<String> login(AdminLoginDTO dto) {
+    public String login(AdminLoginDTO dto) {
         LambdaQueryWrapper<Admin> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Admin::getUsername, dto.getUsername());
         Admin admin = adminMapper.selectOne(wrapper);
 
         if (admin == null || !admin.getPassword().equals(dto.getPassword())) {
-            return Result.error("账号或密码错误");
+            throw new BusinessException(401, "账号或密码错误");
         }
 
         if (admin.getStatus() == 0) {
-            return Result.error("该管理员账号已被禁用");
+            throw new BusinessException(403, "该管理员账号已被禁用");
         }
 
-        // 使用JwtUtil生成管理员JWT Token
-        String token = JwtUtil.generateAdminToken(admin.getId());
-        return Result.success(token);
+        return JwtUtil.generateAdminToken(admin.getId());
     }
 
     @Override
-    public Result<AdminVO> getInfo(Long id) {
-        if (id == null) return Result.error("ID不能为空");
+    public AdminVO getInfo(Long id) {
+        if (id == null) throw new BusinessException("ID不能为空");
 
         Admin admin = adminMapper.selectById(id);
-        if (admin == null) return Result.error("管理员不存在");
+        if (admin == null) throw new BusinessException("管理员不存在");
 
         AdminVO vo = new AdminVO();
         BeanUtils.copyProperties(admin, vo);
         if (admin.getId() != null) {
             vo.setId(admin.getId().toString());
         }
-        return Result.success(vo);
+        return vo;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Result<String> updatePassword(AdminUpdatePasswordDTO dto) {
-        if (dto.getId() == null) return Result.error("管理员ID不能为空");
+    public String updatePassword(AdminUpdatePasswordDTO dto) {
+        if (dto.getId() == null) throw new BusinessException("管理员ID不能为空");
 
         Admin admin = adminMapper.selectById(dto.getId());
-        if (admin == null) return Result.error("管理员不存在");
+        if (admin == null) throw new BusinessException("管理员不存在");
 
         if (!admin.getPassword().equals(dto.getOldPassword())) {
-            return Result.error("原密码错误");
+            throw new BusinessException("原密码错误");
         }
 
         Admin updateAdmin = new Admin();
@@ -95,11 +82,11 @@ public class AdminServiceImpl implements AdminService {
         updateAdmin.setPassword(dto.getNewPassword());
         adminMapper.updateById(updateAdmin);
 
-        return Result.success("密码修改成功，请重新登录");
+        return "密码修改成功，请重新登录";
     }
 
     @Override
-    public Result<PageResult<AdminUserVO>> getUserList(AdminUserQueryDTO queryDTO) {
+    public PageResult<AdminUserVO> getUserList(AdminUserQueryDTO queryDTO) {
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
 
         if (StringUtils.hasText(queryDTO.getKeyword())) {
@@ -127,71 +114,64 @@ public class AdminServiceImpl implements AdminService {
             vo.setAvatar(user.getAvatar());
             vo.setAge(user.getAge());
             vo.setEmail(user.getEmail());
-            vo.setCategoryId(String.valueOf(user.getCategoryId() != null ? Long.valueOf(user.getCategoryId().toString()) : null));
+            vo.setCategoryId(user.getCategoryId() != null ? user.getCategoryId().toString() : null);
             vo.setCreateTime(user.getCreateTime());
             return vo;
         }).collect(Collectors.toList());
 
-        PageResult<AdminUserVO> pageResult = new PageResult<>(
-                voList,
-                userPage.getTotal(),
-                queryDTO.getPageNum(),
-                queryDTO.getPageSize()
-        );
-
-        return Result.success(pageResult);
+        return new PageResult<>(voList, userPage.getTotal(), queryDTO.getPageNum(), queryDTO.getPageSize());
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Result<String> updateUserStatus(Long userId, Integer status) {
+    public String updateUserStatus(Long userId, Integer status) {
         if (userId == null) {
-            return Result.error("用户ID不能为空");
+            throw new BusinessException("用户ID不能为空");
         }
-        
+
         if (status == null || (status != 0 && status != 1)) {
-            return Result.error("状态参数错误");
+            throw new BusinessException("状态参数错误");
         }
-        
+
         User user = userMapper.selectById(userId);
         if (user == null) {
-            return Result.error("用户不存在");
+            throw new BusinessException("用户不存在");
         }
-        
+
         User updateUser = new User();
         updateUser.setId(userId);
         updateUser.setStatus(status);
         userMapper.updateById(updateUser);
-        
+
         String statusText = status == 1 ? "启用" : "禁用";
-        return Result.success("用户已" + statusText);
+        return "用户已" + statusText;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Result<String> deleteUser(Long userId) {
+    public String deleteUser(Long userId) {
         if (userId == null) {
-            return Result.error("用户ID不能为空");
+            throw new BusinessException("用户ID不能为空");
         }
-        
+
         User user = userMapper.selectById(userId);
         if (user == null) {
-            return Result.error("用户不存在");
+            throw new BusinessException("用户不存在");
         }
-        
+
         userMapper.deleteById(userId);
-        return Result.success("用户删除成功");
+        return "用户删除成功";
     }
 
     @Override
-    public Result<AdminUserVO> getUserDetail(Long userId) {
+    public AdminUserVO getUserDetail(Long userId) {
         if (userId == null) {
-            return Result.error("用户ID不能为空");
+            throw new BusinessException("用户ID不能为空");
         }
 
         User user = userMapper.selectById(userId);
         if (user == null) {
-            return Result.error("用户不存在");
+            throw new BusinessException("用户不存在");
         }
 
         AdminUserVO vo = new AdminUserVO();
@@ -204,6 +184,6 @@ public class AdminServiceImpl implements AdminService {
             vo.setCategoryId(user.getCategoryId().toString());
         }
 
-        return Result.success(vo);
+        return vo;
     }
 }

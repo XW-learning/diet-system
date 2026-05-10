@@ -2,11 +2,11 @@ package com.xw.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.xw.common.Result;
 import com.xw.dto.ExerciseCalendarDTO;
 import com.xw.dto.ExerciseCheckInDTO;
 import com.xw.dto.MealCheckInDTO;
 import com.xw.entity.*;
+import com.xw.exception.BusinessException;
 import com.xw.mapper.*;
 import com.xw.service.CheckInService;
 import com.xw.vo.*;
@@ -52,7 +52,7 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
     private UserWaterRecordMapper userWaterRecordMapper;
 
     @Override
-    public Result<CheckInSummaryVO> getSummary(Long userId, LocalDate date) {
+    public CheckInSummaryVO getSummary(Long userId, LocalDate date) {
         CheckInSummaryVO vo = new CheckInSummaryVO();
         LambdaQueryWrapper<CheckIn> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CheckIn::getUserId, userId).eq(CheckIn::getDate, date);
@@ -69,20 +69,20 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
         }
 
         vo.setRemainCalorie(vo.getBudgetCalorie() - vo.getIntakeCalorie() + vo.getBurnCalorie());
-        return Result.success(vo);
+        return vo;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Result<String> doMealCheckIn(Long userId, MealCheckInDTO dto) { // 🌟 接收 userId 参数
+    public String doMealCheckIn(Long userId, MealCheckInDTO dto) { // 🌟 接收 userId 参数
         // 1. 严格参数校验 (不再需要校验 dto.getUserId())
         if (dto.getDishId() == null || dto.getMealType() == null || dto.getWeight() == null) {
-            return Result.error("提交失败：缺少必要参数");
+            throw new BusinessException("提交失败：缺少必要参数");
         }
 
         // 2. 获取菜品基数并计算
         Dish dish = dishMapper.selectById(dto.getDishId());
-        if (dish == null) return Result.error("菜品不存在");
+        if (dish == null) throw new BusinessException("菜品不存在");
 
         BigDecimal inputWeight = new BigDecimal(dto.getWeight());
         BigDecimal refWeight = dish.getRefWeight() != null ? dish.getRefWeight() : new BigDecimal("100");
@@ -139,15 +139,15 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
             updateCheckInStat(userId, targetDate); // 🌟 使用参数 userId
         }
 
-        return Result.success("打卡成功！本次摄入 " + cal + " 千卡");
+        return "打卡成功！本次摄入 " + cal + " 千卡";
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Result<String> doMealCheckInBatch(Long userId, List<MealCheckInDTO> dtoList) { // 🌟 接收 userId 参数
+    public String doMealCheckInBatch(Long userId, List<MealCheckInDTO> dtoList) { // 🌟 接收 userId 参数
         System.out.println("接收到批量食物提交请求：" + dtoList);
         if (dtoList == null || dtoList.isEmpty()) {
-            return Result.error("提交失败：食物列表为空");
+            throw new BusinessException("提交失败：食物列表为空");
         }
 
         // 🌟 删除从 dtoList.get(0).getUserId() 取值的逻辑，直接使用拦截器传来的参数
@@ -189,7 +189,7 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
         }
 
         if (detailList.isEmpty()) {
-            return Result.error("打卡失败：无可用的食物数据");
+            throw new BusinessException("打卡失败：无可用的食物数据");
         }
 
         com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<CheckIn> query = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
@@ -225,20 +225,20 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
             updateCheckInStat(userId, targetDate); // 🌟
         }
 
-        return Result.success("打卡成功！共计摄入 " + totalCalorieToAdd + " 千卡");
+        return "打卡成功！共计摄入 " + totalCalorieToAdd + " 千卡";
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Result<String> doExerciseCheckIn(Long userId, ExerciseCheckInDTO dto) { // 🌟 接收 userId
+    public String doExerciseCheckIn(Long userId, ExerciseCheckInDTO dto) { // 🌟 接收 userId
         // 🌟 移除 dto.getUserId() == null 的校验
         if (dto.getExerciseId() == null || dto.getDuration() == null) {
-            return Result.error("缺少必要参数");
+            throw new BusinessException("缺少必要参数");
         }
         LocalDate targetDate = dto.getDate() != null ? dto.getDate() : LocalDate.now();
 
         Exercise exercise = exerciseMapper.selectById(dto.getExerciseId());
-        if (exercise == null) return Result.error("选择的运动项目不存在");
+        if (exercise == null) throw new BusinessException("选择的运动项目不存在");
 
         double caloriePerMinute = exercise.getCaloriePerHalfHour() / 30.0;
         int calculatedBurnCalorie = (int) Math.round(caloriePerMinute * dto.getDuration());
@@ -277,11 +277,11 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
             updateCheckInStat(userId, targetDate); // 🌟
         }
 
-        return Result.success("运动成功！增加了 " + calculatedBurnCalorie + " kcal 额度");
+        return "运动成功！增加了 " + calculatedBurnCalorie + " kcal 额度";
     }
 
     @Override
-    public Result<CheckInDetailVO> getCheckInDetail(Long userId, LocalDate date) {
+    public CheckInDetailVO getCheckInDetail(Long userId, LocalDate date) {
         CheckInDetailVO vo = new CheckInDetailVO();
         vo.setMeals(new ArrayList<>());
         vo.setExercises(new ArrayList<>());
@@ -290,7 +290,7 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
         mainWrapper.eq(CheckIn::getUserId, userId).eq(CheckIn::getDate, date);
         CheckIn mainRecord = checkInMapper.selectOne(mainWrapper);
 
-        if (mainRecord == null) return Result.success(vo);
+        if (mainRecord == null) return vo;
 
         vo.setCheckIn(mainRecord);
         List<MealVO> meals = detailMapper.getDetailMeals(mainRecord.getId());
@@ -301,20 +301,20 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
         List<ExerciseRecord> exercises = exerciseRecordMapper.selectList(exWrapper);
         if (exercises != null) vo.setExercises(exercises);
 
-        return Result.success(vo);
+        return vo;
     }
 
     @Override
-    public Result<List<CheckIn>> getCheckInList(Long userId) {
-        if (userId == null) return Result.error("用户ID不能为空");
+    public List<CheckIn> getCheckInList(Long userId) {
+        if (userId == null) throw new BusinessException("用户ID不能为空");
         LambdaQueryWrapper<CheckIn> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CheckIn::getUserId, userId).orderByDesc(CheckIn::getDate);
-        return Result.success(checkInMapper.selectList(wrapper));
+        return checkInMapper.selectList(wrapper);
     }
 
     @Override
-    public Result<CheckInStat> getCheckInStat(Long userId) {
-        if (userId == null) return Result.error("用户ID不能为空");
+    public CheckInStat getCheckInStat(Long userId) {
+        if (userId == null) throw new BusinessException("用户ID不能为空");
         LambdaQueryWrapper<CheckInStat> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CheckInStat::getUserId, userId);
         CheckInStat stat = statMapper.selectOne(wrapper);
@@ -324,7 +324,7 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
             stat.setContinuousDays(0);
             stat.setMonthRate(BigDecimal.ZERO);
         }
-        return Result.success(stat);
+        return stat;
     }
 
     private Integer calculateDynamicBudget(Long userId) {
@@ -387,7 +387,7 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
     }
 
     @Override
-    public Result<CheckInAnalysisVO> getDailyAnalysis(Long userId, String dateStr) {
+    public CheckInAnalysisVO getDailyAnalysis(Long userId, String dateStr) {
         java.time.LocalDate targetDate = java.time.LocalDate.parse(dateStr);
         CheckInAnalysisVO vo = new CheckInAnalysisVO();
 
@@ -463,11 +463,11 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
         vo.setRecommendProtein(new java.math.BigDecimal(budget * 0.2 / 4).setScale(1, java.math.RoundingMode.HALF_UP));
         vo.setRecommendFat(new java.math.BigDecimal(budget * 0.3 / 9).setScale(1, java.math.RoundingMode.HALF_UP));
 
-        return Result.success(vo);
+        return vo;
     }
 
     @Override
-    public Result<FitnessCalendarVO> getFitnessCalendarData(Long userId, Integer year, Integer month) {
+    public FitnessCalendarVO getFitnessCalendarData(Long userId, Integer year, Integer month) {
         FitnessCalendarVO vo = new FitnessCalendarVO();
 
         LambdaQueryWrapper<CheckInStat> statWrapper = new LambdaQueryWrapper<>();
@@ -483,7 +483,7 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
             vo.setTotalBurnCalorie(0);
             vo.setDailyData(new HashMap<>());
             vo.setTop5Workouts(new ArrayList<>());
-            return Result.success(vo);
+            return vo;
         }
 
         int totalDuration = 0;
@@ -531,11 +531,11 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
 
         vo.setTop5Workouts(top5);
 
-        return Result.success(vo);
+        return vo;
     }
 
     @Override
-    public Result<FatLossCalendarVO> getFatLossCalendarData(Long userId, Integer year, Integer month) {
+    public FatLossCalendarVO getFatLossCalendarData(Long userId, Integer year, Integer month) {
         FatLossCalendarVO vo = new FatLossCalendarVO();
         Map<String, FatLossCalendarVO.DailyFatLossVO> dailyMap = new HashMap<>();
 
@@ -612,11 +612,11 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
         }
 
         vo.setDailyData(dailyMap);
-        return Result.success(vo);
+        return vo;
     }
 
     @Override
-    public Result<FoodCalendarVO> getFoodCalendarData(Long userId, Integer year, Integer month) {
+    public FoodCalendarVO getFoodCalendarData(Long userId, Integer year, Integer month) {
         FoodCalendarVO vo = new FoodCalendarVO();
         Map<String, FoodCalendarVO.DailyFoodVO> dailyMap = new HashMap<>();
 
@@ -631,7 +631,7 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
 
         if (checkIns.isEmpty()) {
             vo.setDailyData(dailyMap);
-            return Result.success(vo);
+            return vo;
         }
 
         List<Long> checkInIds = checkIns.stream().map(CheckIn::getId).collect(Collectors.toList());
@@ -669,6 +669,6 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
         }
 
         vo.setDailyData(dailyMap);
-        return Result.success(vo);
+        return vo;
     }
 }

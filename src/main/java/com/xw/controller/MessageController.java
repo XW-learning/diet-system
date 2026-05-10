@@ -27,14 +27,14 @@ public class MessageController {
     @GetMapping("/unread/count")
     public Result<Long> getUnreadCount() {
         Long currentUserId = ThreadLocalUtil.getCurrentUserId();
-        return messageService.getUnreadCount(currentUserId);
+        return Result.success(messageService.getUnreadCount(currentUserId));
     }
 
     @Operation(summary = "35. 获取消息列表")
     @GetMapping("/list")
     public Result<List<MessageVO>> getMessageList() {
         Long currentUserId = ThreadLocalUtil.getCurrentUserId();
-        return messageService.getMessageList(currentUserId);
+        return Result.success(messageService.getMessageList(currentUserId));
     }
 
     @Operation(summary = "36. 标记消息为已读")
@@ -42,6 +42,6 @@ public class MessageController {
     @PutMapping("/read")
     public Result<String> readMessage(@RequestParam Long id) {
         Long currentUserId = ThreadLocalUtil.getCurrentUserId();
-        return messageService.readMessage(id, currentUserId);
+        return Result.success(messageService.readMessage(id, currentUserId));
     }
 }

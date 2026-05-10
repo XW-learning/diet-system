@@ -28,7 +28,7 @@ public class ShareController {
     @LogOperation("29. 发布/修改分享")
     @PostMapping("/save")
     public Result<String> saveShare(@RequestBody ShareSaveDTO dto) {
-        return shareService.saveShare(dto);
+        return Result.success(shareService.saveShare(dto));
     }
 
     @Operation(summary = "30. 删除分享")
@@ -36,19 +36,19 @@ public class ShareController {
     @DeleteMapping("/delete")
     public Result<String> deleteShare(@RequestParam Long id) {
         Long currentUserId = ThreadLocalUtil.getCurrentUserId();
-        return shareService.deleteShare(id, currentUserId);
+        return Result.success(shareService.deleteShare(id, currentUserId));
     }
 
     @Operation(summary = "31. 大厅分享列表(最新公开动态)")
     @GetMapping("/list")
     public Result<List<ShareVO>> getShareList() {
-        return shareService.getShareList();
+        return Result.success(shareService.getShareList());
     }
 
     @Operation(summary = "33. 我的分享列表")
     @GetMapping("/my")
     public Result<List<ShareVO>> getMyShares() {
         Long currentUserId = ThreadLocalUtil.getCurrentUserId();
-        return shareService.getMyShares(currentUserId);
+        return Result.success(shareService.getMyShares(currentUserId));
     }
 }

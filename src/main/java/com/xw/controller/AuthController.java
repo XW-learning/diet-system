@@ -27,27 +27,27 @@ public class AuthController {
     @LogOperation("用户注册")
     @PostMapping("/register")
     public Result<String> register(@Valid @RequestBody RegisterDTO regRequest) {
-        return authService.register(regRequest);
+        return Result.success(authService.register(regRequest));
     }
 
     @Operation(summary = "用户登录")
     @LogOperation("用户登录")
     @PostMapping("/login")
     public Result<String> login(@RequestBody LoginDTO loginDTO) {
-        return authService.login(loginDTO);
+        return Result.success(authService.login(loginDTO));
     }
 
     @Operation(summary = "重置密码")
     @LogOperation("重置密码")
     @PutMapping("/resetPassword")
     public Result<String> resetPassword(@RequestBody ResetPasswordDTO resetRequest) {
-        return authService.resetPassword(resetRequest);
+        return Result.success(authService.resetPassword(resetRequest));
     }
 
     @Operation(summary = "退出登录")
     @LogOperation("退出登录")
-    @PostMapping("/logout") // 对应文档 POST 方法
+    @PostMapping("/logout")
     public Result<String> logout() {
-        return authService.logout();
+        return Result.success(authService.logout());
     }
 }

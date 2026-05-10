@@ -32,14 +32,14 @@ public class AiController {
     public Result<AiDishVO> recognizeImage(
             @RequestParam("file") MultipartFile file,
             @RequestParam("userId") Long userId) {
-        return aiService.recognizeImage(file, userId);
+        return Result.success(aiService.recognizeImage(file, userId));
     }
 
     @Operation(summary = "39. 提交纠正反馈")
     @LogOperation("40. 提交纠正反馈")
     @PostMapping("/feedback")
     public Result<String> submitFeedback(@RequestBody AiFeedbackDTO dto) {
-        return aiService.submitFeedback(dto);
+        return Result.success(aiService.submitFeedback(dto));
     }
 
     @Operation(summary = "40. AI 健康顾问实时聊天 (流式打字机效果)")

@@ -35,7 +35,7 @@ public class UserController {
     @GetMapping("/info")
     public Result<UserVO> getUserInfo() {
         Long currentUserId = ThreadLocalUtil.getCurrentUserId();
-        return userService.getUserInfo(currentUserId);
+        return Result.success(userService.getUserInfo(currentUserId));
     }
 
     /**
@@ -49,7 +49,7 @@ public class UserController {
     @PostMapping("/save")
     public Result<String> updateUserInfo(@RequestBody UserUpdateDTO updateDTO) {
         Long currentUserId = ThreadLocalUtil.getCurrentUserId();
-        return userService.updateUserInfo(currentUserId, updateDTO);
+        return Result.success(userService.updateUserInfo(currentUserId, updateDTO));
     }
 
     /**
@@ -63,7 +63,7 @@ public class UserController {
     @PutMapping("/updatePassword")
     public Result<String> updatePassword(@RequestBody UpdatePasswordDTO dto) {
         Long userId = ThreadLocalUtil.getCurrentUserId();
-        return userService.updatePassword(userId, dto);
+        return Result.success(userService.updatePassword(userId, dto));
     }
 
     /**
@@ -76,6 +76,6 @@ public class UserController {
     @DeleteMapping("/delete")
     public Result<String> deleteAccount() {
         Long userId = ThreadLocalUtil.getCurrentUserId();
-        return userService.deleteAccount(userId);
+        return Result.success(userService.deleteAccount(userId));
     }
 }

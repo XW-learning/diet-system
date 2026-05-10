@@ -43,4 +43,19 @@ public class Result<T> {
         result.setMsg(msg);
         return result;
     }
+
+    /**
+     * 失败响应（自定义状态码）
+     *
+     * @param code 错误状态码
+     * @param msg  错误消息
+     * @param <T>  数据类型
+     * @return 失败结果
+     */
+    public static <T> Result<T> error(Integer code, String msg) {
+        Result<T> result = new Result<>();
+        result.setCode(code);
+        result.setMsg(msg);
+        return result;
+    }
 }

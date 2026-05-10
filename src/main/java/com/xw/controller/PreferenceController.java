@@ -29,7 +29,7 @@ public class PreferenceController {
     @GetMapping("/info")
     public Result<UserPreference> getPreference() {
         Long currentUserId = ThreadLocalUtil.getCurrentUserId();
-        return preferenceService.getPreference(currentUserId);
+        return Result.success(preferenceService.getPreference(currentUserId));
     }
 
     @Operation(summary = "保存饮食偏好")
@@ -37,7 +37,7 @@ public class PreferenceController {
     @PostMapping("/save")
     public Result<String> savePreference(@RequestBody UserPreferenceDTO dto) {
         Long currentUserId = ThreadLocalUtil.getCurrentUserId();
-        return preferenceService.savePreference(currentUserId, dto);
+        return Result.success(preferenceService.savePreference(currentUserId, dto));
     }
 
     @Operation(summary = "添加过敏食材")
@@ -45,7 +45,7 @@ public class PreferenceController {
     @PostMapping("/allergy/add")
     public Result<String> addAllergy(@RequestParam Long materialId) {
         Long currentUserId = ThreadLocalUtil.getCurrentUserId();
-        return preferenceService.addAllergy(currentUserId, materialId);
+        return Result.success(preferenceService.addAllergy(currentUserId, materialId));
     }
 
     @Operation(summary = "删除过敏食材")
@@ -53,13 +53,13 @@ public class PreferenceController {
     @DeleteMapping("/allergy/delete")
     public Result<String> deleteAllergy(@RequestParam Long materialId) {
         Long currentUserId = ThreadLocalUtil.getCurrentUserId();
-        return preferenceService.deleteAllergy(currentUserId, materialId);
+        return Result.success(preferenceService.deleteAllergy(currentUserId, materialId));
     }
 
     @Operation(summary = "获取用户过敏食材列表")
     @GetMapping("/allergy/list")
     public Result<List<AllergyVO>> getUserAllergies() {
         Long currentUserId = ThreadLocalUtil.getCurrentUserId();
-        return preferenceService.getUserAllergies(currentUserId);
+        return Result.success(preferenceService.getUserAllergies(currentUserId));
     }
 }
