@@ -6,6 +6,7 @@ import com.xw.dto.AiChatDTO;
 import com.xw.dto.AiFeedbackDTO;
 import com.xw.dto.AiRecognizeDTO;
 import com.xw.service.AiService;
+import com.xw.utils.ThreadLocalUtil;
 import com.xw.vo.AiDishVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -45,6 +46,7 @@ public class AiController {
     @Operation(summary = "40. AI 健康顾问实时聊天 (流式打字机效果)")
     @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamChat(@RequestBody AiChatDTO dto) {
-        return aiService.streamChat(dto);
+        Long userId = ThreadLocalUtil.getCurrentUserId();
+        return aiService.streamChat(userId, dto);
     }
 }

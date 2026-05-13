@@ -16,5 +16,5 @@ public interface AiService {
 
     String submitFeedback(AiFeedbackDTO dto);
 
-    SseEmitter streamChat(AiChatDTO dto);
+    SseEmitter streamChat(Long userId, AiChatDTO dto);
 }

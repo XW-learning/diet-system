@@ -9,7 +9,11 @@ import com.xw.entity.AiRecognize;
 import com.xw.exception.BusinessException;
 import com.xw.mapper.AiRecognizeMapper;
 import com.xw.service.AiService;
+import com.xw.service.PreferenceService;
+import com.xw.service.UserService;
 import com.xw.vo.AiDishVO;
+import com.xw.vo.AllergyVO;
+import com.xw.vo.UserVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,6 +41,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * @author XW
+ */
 @Slf4j
 @Service
 public class AiServiceImpl implements AiService {
@@ -46,6 +53,12 @@ public class AiServiceImpl implements AiService {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private UserService userService;
+
+    @Autowired
+    private PreferenceService preferenceService;
 
     @Value("${zhipu.api-key}")
     private String apiKey;
@@ -111,7 +124,7 @@ public class AiServiceImpl implements AiService {
                             "请识别图片中的食物，并估算热量。\n\n" +
                             "⚠️ 重要要求：\n" +
                             "1. 只允许输出 JSON\n" +
-                            "2. 不允许出现\u201C例如\u201D\u201C说明\u201D\u201C结果如下\u201D等任何文字\n" +
+                            "2. 不允许出现“例如”“说明”“结果如下”等任何文字\n" +
                             "3. 不允许换行\n" +
                             "4. 不允许 markdown\n\n" +
                             "格式如下：\n" +
@@ -174,8 +187,19 @@ public class AiServiceImpl implements AiService {
     }
 
     @Override
-    public SseEmitter streamChat(AiChatDTO dto) {
+    public SseEmitter streamChat(Long userId, AiChatDTO dto) {
         SseEmitter emitter = new SseEmitter(120000L);
+
+        log.info("[AI聊天] userId={} message={}", userId, dto.getMessage());
+
+        UserVO userVO = userService.getUserInfo(userId);
+        List<AllergyVO> allergies = preferenceService.getUserAllergies(userId);
+        String systemPrompt = buildSystemPrompt(userVO, allergies);
+
+        log.info("[AI聊天] 用户数据 userVO={}", userVO);
+        log.info("[AI聊天] 过敏食材 allergies={}", allergies != null ? allergies.size() + "条" : "无");
+        log.info("[AI聊天] System Prompt 长度={} 前200字={}", systemPrompt.length(),
+                systemPrompt.length() > 200 ? systemPrompt.substring(0, 200) + "..." : systemPrompt);
 
         CompletableFuture.runAsync(() -> {
             try {
@@ -184,12 +208,12 @@ public class AiServiceImpl implements AiService {
                 requestBody.put("stream", true);
 
                 List<Map<String, String>> messages = new ArrayList<>();
-                messages.add(Map.of("role", "system", "content",
-                        "你是一位极其专业的私人健康营养师，名字叫'XW健康管家'。请根据用户的提问给出科学、温和的饮食和运动建议。回答要精简、排版清晰。"));
+                messages.add(Map.of("role", "system", "content", systemPrompt));
                 messages.add(Map.of("role", "user", "content", dto.getMessage()));
                 requestBody.put("messages", messages);
 
                 String jsonBody = objectMapper.writeValueAsString(requestBody);
+                log.info("[AI聊天] 发送Zhipu请求体 长度={}", jsonBody.length());
 
                 HttpClient client = HttpClient.newHttpClient();
                 HttpRequest request = HttpRequest.newBuilder()
@@ -200,6 +224,7 @@ public class AiServiceImpl implements AiService {
                         .build();
 
                 HttpResponse<InputStream> response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
+                log.info("[AI聊天] Zhipu HTTP状态码={}", response.statusCode());
 
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.body(), StandardCharsets.UTF_8))) {
                     String line;
@@ -208,6 +233,7 @@ public class AiServiceImpl implements AiService {
                             String data = line.substring(6);
 
                             if ("[DONE]".equals(data)) {
+                                log.info("[AI聊天] Zhipu 流式传输完成");
                                 emitter.complete();
                                 break;
                             }
@@ -217,6 +243,7 @@ public class AiServiceImpl implements AiService {
                             if (choices.isArray() && !choices.isEmpty()) {
                                 String content = choices.get(0).path("delta").path("content").asText();
                                 if (content != null && !content.isEmpty()) {
+                                    log.debug("[AI聊天] 发送chunk: {}", content);
                                     emitter.send(content);
                                 }
                             }
@@ -224,10 +251,86 @@ public class AiServiceImpl implements AiService {
                     }
                 }
             } catch (Exception e) {
+                log.error("[AI聊天] 异常: {}", e.getMessage(), e);
                 emitter.completeWithError(e);
             }
         });
 
         return emitter;
+    }
+
+    private String buildSystemPrompt(UserVO user, List<AllergyVO> allergies) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("你是一位极其专业的私人健康营养师，名字叫'XW健康管家'。\n\n");
+
+        sb.append("## 用户身体数据\n");
+        if (user != null) {
+            String genderStr = "未知";
+            if (user.getGender() != null) {
+                genderStr = user.getGender() == 1 ? "男" : "女";
+            }
+            sb.append("- 性别：").append(genderStr).append("\n");
+            if (user.getAge() != null) {
+                sb.append("- 年龄：").append(user.getAge()).append(" 岁\n");
+            }
+            if (user.getHeight() != null) {
+                sb.append("- 身高：").append(user.getHeight()).append(" cm\n");
+            }
+            if (user.getWeight() != null) {
+                sb.append("- 体重：").append(user.getWeight()).append(" kg\n");
+            }
+            if (user.getBmi() != null) {
+                sb.append("- BMI：").append(user.getBmi()).append("\n");
+            }
+
+            sb.append("\n## 用户饮食偏好\n");
+            if (isNotEmpty(user.getTaste())) {
+                sb.append("- 口味偏好：").append(user.getTaste()).append("\n");
+            }
+            if (isNotEmpty(user.getDietType())) {
+                sb.append("- 饮食类型：").append(user.getDietType()).append("\n");
+            }
+            if (!isNotEmpty(user.getTaste()) && !isNotEmpty(user.getDietType())) {
+                sb.append("- 暂无特殊偏好\n");
+            }
+
+            sb.append("\n## 用户健康目标\n");
+            if (isNotEmpty(user.getGoalType())) {
+                sb.append("- 目标类型：").append(user.getGoalType()).append("\n");
+            }
+            if (user.getTargetWeight() != null) {
+                sb.append("- 目标体重：").append(user.getTargetWeight()).append(" kg\n");
+            }
+            if (!isNotEmpty(user.getGoalType()) && user.getTargetWeight() == null) {
+                sb.append("- 暂无设定目标\n");
+            }
+        } else {
+            sb.append("- 暂无身体数据\n");
+        }
+
+        sb.append("\n## 用户过敏/忌口食物\n");
+        if (allergies != null && !allergies.isEmpty()) {
+            StringBuilder allergyNames = new StringBuilder();
+            for (int i = 0; i < allergies.size(); i++) {
+                if (i > 0) allergyNames.append("、");
+                allergyNames.append(allergies.get(i).getName());
+            }
+            sb.append("- ").append(allergyNames).append("\n");
+        } else {
+            sb.append("- 无\n");
+        }
+
+        sb.append("\n## 回答规则\n");
+        sb.append("1. 严格根据用户的身体数据、饮食偏好、健康目标和忌口食物，提供个性化建议\n");
+        sb.append("2. 绝对不要推荐用户过敏或忌口的食物，也不要推荐与此类食材相关的菜谱\n");
+        sb.append("3. 回答要科学、温和、精简，排版清晰，适当使用分段和列表\n");
+        sb.append("4. 只回答与健康饮食、运动健身、营养搭配相关的问题，遇到无关问题请礼貌拒绝\n");
+        sb.append("5. 如果用户的身体数据不完整，可以温和地提醒用户完善个人信息以获得更精准的建议\n");
+
+        return sb.toString();
+    }
+
+    private boolean isNotEmpty(String str) {
+        return str != null && !str.trim().isEmpty();
     }
 }
