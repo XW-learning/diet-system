@@ -143,4 +143,17 @@ public class PlanController {
         Long currentUserId = ThreadLocalUtil.getCurrentUserId();
         return Result.success(planService.getActivePlan(currentUserId));
     }
+
+    /**
+     * 取消/放弃当前激活的食谱计划
+     *
+     * @return 操作结果
+     */
+    @Operation(summary = "放弃当前食谱计划")
+    @LogOperation("放弃食谱计划")
+    @DeleteMapping("/active")
+    public Result<String> deactivatePlan() {
+        Long currentUserId = ThreadLocalUtil.getCurrentUserId();
+        return Result.success(planService.deactivatePlan(currentUserId));
+    }
 }

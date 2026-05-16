@@ -32,4 +32,6 @@ public interface PlanService {
     String activatePlan(Long userId, Long planId);
 
     PlanDetailVO getActivePlan(Long userId);
+
+    String deactivatePlan(Long userId);
 }

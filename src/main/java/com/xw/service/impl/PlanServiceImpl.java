@@ -247,4 +247,17 @@ public class PlanServiceImpl implements PlanService {
 
         return getPlanDetail(activeRecord.getPlanId());
     }
+
+    @Override
+    public String deactivatePlan(Long userId) {
+        LambdaQueryWrapper<UserPlanRecord> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(UserPlanRecord::getUserId, userId)
+                .eq(UserPlanRecord::getStatus, 1);
+        UserPlanRecord activeRecord = userPlanRecordMapper.selectOne(queryWrapper);
+        if (activeRecord == null) throw new BusinessException("No active plan to deactivate");
+
+        activeRecord.setStatus(0);
+        userPlanRecordMapper.updateById(activeRecord);
+        return "Recipe plan deactivated successfully";
+    }
 }
