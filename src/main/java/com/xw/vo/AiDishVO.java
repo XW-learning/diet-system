@@ -18,4 +18,13 @@ public class AiDishVO {
 
     @Schema(description = "AI估算的卡路里")
     private Integer calorie;
+
+    @Schema(description = "碳水化合物(g)")
+    private Integer carbohydrate;
+
+    @Schema(description = "蛋白质(g)")
+    private Integer protein;
+
+    @Schema(description = "脂肪(g)")
+    private Integer fat;
 }

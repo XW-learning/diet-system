@@ -6,6 +6,9 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * @author XW
+ */
 @Data
 @TableName("t_check_in_detail")
 public class CheckInDetail {
@@ -13,14 +16,18 @@ public class CheckInDetail {
     private Long id;
     private Long checkInId;
     private Integer mealType;
-    private Long dishId;
+
+    // 👇 修改这里的逻辑说明：普通打卡存 dishId，AI打卡存 aiRecordId
+    private Long dishId; // AI打卡时，此字段为 null
+    private Long aiRecordId; // 🌟 新增：AI识别打卡专属ID
+    private String foodName; // 🌟 新增：食物名称（普通菜品存dish名，AI存识别出来的名字）
+
     private Integer calorie;
     private Integer type;
     private LocalDateTime createTime;
 
-    // 🌟 新增：记录本次摄入的宏量营养素
-    private BigDecimal carbohydrate; // 碳水
-    private BigDecimal protein;      // 蛋白质
-    private BigDecimal fat;          // 脂肪
-    private BigDecimal fiber;        // 纤维
+    private BigDecimal carbohydrate;
+    private BigDecimal protein;
+    private BigDecimal fat;
+    private BigDecimal fiber;
 }

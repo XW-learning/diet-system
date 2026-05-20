@@ -119,16 +119,17 @@ public class AiServiceImpl implements AiService {
 
             Map<String, Object> textContent = new HashMap<>();
             textContent.put("type", "text");
+            // 🌟 修复点 1：转义了字符串中的双引号，解决 Java 编译报错
             textContent.put("text",
                     "你是一位资深的健康营养师。\n" +
-                            "请识别图片中的食物，并估算热量。\n\n" +
+                            "请识别图片中的食物，并给出每100克的营养估算。\n\n" +
                             "⚠️ 重要要求：\n" +
                             "1. 只允许输出 JSON\n" +
-                            "2. 不允许出现“例如”“说明”“结果如下”等任何文字\n" +
+                            "2. 不允许出现\"例如\"、\"说明\"、\"结果如下\"等任何文字\n" +
                             "3. 不允许换行\n" +
                             "4. 不允许 markdown\n\n" +
-                            "格式如下：\n" +
-                            "{\"dishName\":\"食物名称\",\"calorie\":整数}"
+                            "格式如下（克数为整数）：\n" +
+                            "{\"dishName\":\"食物名称\",\"calorie\":整数,\"carbohydrate\":整数,\"protein\":整数,\"fat\":整数}"
             );
 
             contents.add(imageContent);
@@ -144,12 +145,22 @@ public class AiServiceImpl implements AiService {
             JsonNode rootNode = objectMapper.readTree(aiResponseStr);
             String aiContent = rootNode.path("choices").get(0).path("message").path("content").asText();
 
+            // 🌟 修复点 2：增强 JSON 解析逻辑，防止大模型抽风返回 Markdown 或数组格式导致反序列化崩溃
             if (aiContent != null) {
                 aiContent = aiContent.replaceAll("```json", "").replaceAll("```", "").trim();
+
+                // 如果模型返回的是一个数组格式例如 [{"dishName": ...}]，去掉中括号
+                if (aiContent.startsWith("[")) {
+                    aiContent = aiContent.substring(1, aiContent.length() - 1).trim();
+                }
+
                 int start = aiContent.indexOf("{");
                 int end = aiContent.lastIndexOf("}");
                 if (start != -1 && end != -1) {
                     aiContent = aiContent.substring(start, end + 1);
+                } else {
+                    log.error("AI未返回标准JSON格式: {}", aiContent);
+                    throw new BusinessException("AI 识别内容解析失败，请重新拍照");
                 }
             }
 

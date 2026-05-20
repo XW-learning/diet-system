@@ -23,7 +23,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * 打卡业务实现类 - 重构版 (上下文身份注入)
+ * 打卡业务实现类 - 重构版 (支持普通系统菜品与AI识别食品隔离)
  *
  * @author XW
  */
@@ -74,41 +74,69 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public String doMealCheckIn(Long userId, MealCheckInDTO dto) { // 🌟 接收 userId 参数
-        // 1. 严格参数校验 (不再需要校验 dto.getUserId())
-        if (dto.getDishId() == null || dto.getMealType() == null || dto.getWeight() == null) {
-            throw new BusinessException("提交失败：缺少必要参数");
+    public String doMealCheckIn(Long userId, MealCheckInDTO dto) {
+        // 1. 参数校验
+        if (dto.getDishId() == null && dto.getAiRecordId() == null) {
+            throw new BusinessException("提交失败：请指定系统菜品或AI识别记录");
+        }
+        if (dto.getMealType() == null || dto.getWeight() == null) {
+            throw new BusinessException("提交失败：缺少餐次或重量参数");
         }
 
-        // 2. 获取菜品基数并计算
-        Dish dish = dishMapper.selectById(dto.getDishId());
-        if (dish == null) throw new BusinessException("菜品不存在");
+        int cal = 0;
+        BigDecimal carb = BigDecimal.ZERO;
+        BigDecimal protein = BigDecimal.ZERO;
+        BigDecimal fat = BigDecimal.ZERO;
+        BigDecimal fiber = BigDecimal.ZERO;
+        String finalFoodName = dto.getFoodName();
 
-        BigDecimal inputWeight = new BigDecimal(dto.getWeight());
-        BigDecimal refWeight = dish.getRefWeight() != null ? dish.getRefWeight() : new BigDecimal("100");
-        BigDecimal factor = inputWeight.divide(refWeight, 6, RoundingMode.HALF_UP);
+        // 2. 逻辑分流计算
+        if (dto.getAiRecordId() != null) {
+            // == AI 食品打卡逻辑 ==
+            if (dto.getCalorie() == null) throw new BusinessException("AI打卡缺少卡路里数据");
 
-        int cal = factor.multiply(new BigDecimal(dish.getCalorie())).setScale(0, RoundingMode.HALF_UP).intValue();
-        BigDecimal carb = factor.multiply(dish.getCarbohydrate() != null ? dish.getCarbohydrate() : BigDecimal.ZERO);
-        BigDecimal protein = factor.multiply(dish.getProtein() != null ? dish.getProtein() : BigDecimal.ZERO);
-        BigDecimal fat = factor.multiply(dish.getFat() != null ? dish.getFat() : BigDecimal.ZERO);
-        BigDecimal fiber = factor.multiply(dish.getFiber() != null ? dish.getFiber() : BigDecimal.ZERO);
+            BigDecimal inputWeight = new BigDecimal(dto.getWeight());
+            BigDecimal refWeight = new BigDecimal("100");
+            BigDecimal factor = inputWeight.divide(refWeight, 6, RoundingMode.HALF_UP);
+
+            cal = factor.multiply(new BigDecimal(dto.getCalorie())).setScale(0, RoundingMode.HALF_UP).intValue();
+            carb = factor.multiply(dto.getCarbohydrate() != null ? dto.getCarbohydrate() : BigDecimal.ZERO);
+            protein = factor.multiply(dto.getProtein() != null ? dto.getProtein() : BigDecimal.ZERO);
+            fat = factor.multiply(dto.getFat() != null ? dto.getFat() : BigDecimal.ZERO);
+            fiber = BigDecimal.ZERO; // AI暂不提供纤维数据
+
+        } else {
+            // == 普通系统菜品打卡逻辑 ==
+            Dish dish = dishMapper.selectById(dto.getDishId());
+            if (dish == null) throw new BusinessException("系统菜品不存在");
+
+            finalFoodName = dish.getName();
+            BigDecimal inputWeight = new BigDecimal(dto.getWeight());
+            BigDecimal refWeight = dish.getRefWeight() != null ? dish.getRefWeight() : new BigDecimal("100");
+            BigDecimal factor = inputWeight.divide(refWeight, 6, RoundingMode.HALF_UP);
+
+            cal = factor.multiply(new BigDecimal(dish.getCalorie())).setScale(0, RoundingMode.HALF_UP).intValue();
+            carb = factor.multiply(dish.getCarbohydrate() != null ? dish.getCarbohydrate() : BigDecimal.ZERO);
+            protein = factor.multiply(dish.getProtein() != null ? dish.getProtein() : BigDecimal.ZERO);
+            fat = factor.multiply(dish.getFat() != null ? dish.getFat() : BigDecimal.ZERO);
+            fiber = factor.multiply(dish.getFiber() != null ? dish.getFiber() : BigDecimal.ZERO);
+        }
 
         // 3. 处理主表记录
-        java.time.LocalDate targetDate = dto.getDate() != null ? dto.getDate() : java.time.LocalDate.now();
+        LocalDate targetDate = dto.getDate() != null ? dto.getDate() : LocalDate.now();
 
-        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<CheckIn> query = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
-        query.eq(CheckIn::getUserId, userId).eq(CheckIn::getDate, targetDate); // 🌟 使用参数 userId
+        LambdaQueryWrapper<CheckIn> query = new LambdaQueryWrapper<>();
+        query.eq(CheckIn::getUserId, userId).eq(CheckIn::getDate, targetDate);
         CheckIn mainRecord = checkInMapper.selectOne(query);
 
         if (mainRecord == null) {
             mainRecord = new CheckIn();
-            mainRecord.setUserId(userId); // 🌟 使用参数 userId
+            mainRecord.setUserId(userId);
             mainRecord.setDate(targetDate);
-            mainRecord.setBudgetCalorie(calculateDynamicBudget(userId)); // 🌟 使用参数 userId
+            mainRecord.setBudgetCalorie(calculateDynamicBudget(userId));
             mainRecord.setTotalCalorie(cal);
             mainRecord.setBurnCalorie(0);
-            mainRecord.setCreateTime(java.time.LocalDateTime.now());
+            mainRecord.setCreateTime(LocalDateTime.now());
 
             try {
                 checkInMapper.insert(mainRecord);
@@ -124,19 +152,25 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
         CheckInDetail detail = new CheckInDetail();
         detail.setCheckInId(mainRecord.getId());
         detail.setMealType(dto.getMealType());
+
+        // 🌟 分离存储
         detail.setDishId(dto.getDishId());
+        detail.setAiRecordId(dto.getAiRecordId());
+        detail.setFoodName(finalFoodName);
+
         detail.setCalorie(cal);
         detail.setCarbohydrate(carb.setScale(1, RoundingMode.HALF_UP));
         detail.setProtein(protein.setScale(1, RoundingMode.HALF_UP));
         detail.setFat(fat.setScale(1, RoundingMode.HALF_UP));
         detail.setFiber(fiber.setScale(1, RoundingMode.HALF_UP));
         detail.setType(dto.getType() != null ? dto.getType() : 2);
-        detail.setCreateTime(java.time.LocalDateTime.now());
+        detail.setCreateTime(LocalDateTime.now());
+
         detailMapper.insert(detail);
 
-        // 5. 更新统计状态
-        if (targetDate.equals(java.time.LocalDate.now())) {
-            updateCheckInStat(userId, targetDate); // 🌟 使用参数 userId
+        // 5. 更新统计
+        if (targetDate.equals(LocalDate.now())) {
+            updateCheckInStat(userId, targetDate);
         }
 
         return "打卡成功！本次摄入 " + cal + " 千卡";
@@ -144,46 +178,72 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public String doMealCheckInBatch(Long userId, List<MealCheckInDTO> dtoList) { // 🌟 接收 userId 参数
-        System.out.println("接收到批量食物提交请求：" + dtoList);
+    public String doMealCheckInBatch(Long userId, List<MealCheckInDTO> dtoList) {
         if (dtoList == null || dtoList.isEmpty()) {
             throw new BusinessException("提交失败：食物列表为空");
         }
 
-        // 🌟 删除从 dtoList.get(0).getUserId() 取值的逻辑，直接使用拦截器传来的参数
-        java.time.LocalDate targetDate = dtoList.get(0).getDate() != null ? dtoList.get(0).getDate() : java.time.LocalDate.now();
-
+        LocalDate targetDate = dtoList.get(0).getDate() != null ? dtoList.get(0).getDate() : LocalDate.now();
         int totalCalorieToAdd = 0;
         List<CheckInDetail> detailList = new ArrayList<>();
 
+        // 🌟 修复后的批量循环逻辑（兼容了AI记录）
         for (MealCheckInDTO dto : dtoList) {
-            if (dto.getDishId() == null || dto.getWeight() == null) continue;
+            // 判断是否缺斤少两或者毫无ID
+            if (dto.getWeight() == null) continue;
+            if (dto.getDishId() == null && dto.getAiRecordId() == null) continue;
 
-            Dish dish = dishMapper.selectById(dto.getDishId());
-            if (dish == null) continue;
+            int cal = 0;
+            BigDecimal carb = BigDecimal.ZERO, protein = BigDecimal.ZERO, fat = BigDecimal.ZERO, fiber = BigDecimal.ZERO;
+            String finalFoodName = dto.getFoodName();
 
-            BigDecimal inputWeight = new BigDecimal(dto.getWeight());
-            BigDecimal refWeight = dish.getRefWeight() != null ? dish.getRefWeight() : new BigDecimal("100");
-            BigDecimal factor = inputWeight.divide(refWeight, 6, RoundingMode.HALF_UP);
+            // AI 分支
+            if (dto.getAiRecordId() != null) {
+                if (dto.getCalorie() == null) continue; // AI没有卡路里不计入
+                BigDecimal inputWeight = new BigDecimal(dto.getWeight());
+                BigDecimal refWeight = new BigDecimal("100");
+                BigDecimal factor = inputWeight.divide(refWeight, 6, RoundingMode.HALF_UP);
 
-            int cal = factor.multiply(new BigDecimal(dish.getCalorie())).setScale(0, RoundingMode.HALF_UP).intValue();
-            BigDecimal carb = factor.multiply(dish.getCarbohydrate() != null ? dish.getCarbohydrate() : BigDecimal.ZERO);
-            BigDecimal protein = factor.multiply(dish.getProtein() != null ? dish.getProtein() : BigDecimal.ZERO);
-            BigDecimal fat = factor.multiply(dish.getFat() != null ? dish.getFat() : BigDecimal.ZERO);
-            BigDecimal fiber = factor.multiply(dish.getFiber() != null ? dish.getFiber() : BigDecimal.ZERO);
+                cal = factor.multiply(new BigDecimal(dto.getCalorie())).setScale(0, RoundingMode.HALF_UP).intValue();
+                carb = factor.multiply(dto.getCarbohydrate() != null ? dto.getCarbohydrate() : BigDecimal.ZERO);
+                protein = factor.multiply(dto.getProtein() != null ? dto.getProtein() : BigDecimal.ZERO);
+                fat = factor.multiply(dto.getFat() != null ? dto.getFat() : BigDecimal.ZERO);
+            }
+            // 普通菜品分支
+            else {
+                Dish dish = dishMapper.selectById(dto.getDishId());
+                if (dish == null) continue;
+
+                finalFoodName = dish.getName();
+                BigDecimal inputWeight = new BigDecimal(dto.getWeight());
+                BigDecimal refWeight = dish.getRefWeight() != null ? dish.getRefWeight() : new BigDecimal("100");
+                BigDecimal factor = inputWeight.divide(refWeight, 6, RoundingMode.HALF_UP);
+
+                cal = factor.multiply(new BigDecimal(dish.getCalorie())).setScale(0, RoundingMode.HALF_UP).intValue();
+                carb = factor.multiply(dish.getCarbohydrate() != null ? dish.getCarbohydrate() : BigDecimal.ZERO);
+                protein = factor.multiply(dish.getProtein() != null ? dish.getProtein() : BigDecimal.ZERO);
+                fat = factor.multiply(dish.getFat() != null ? dish.getFat() : BigDecimal.ZERO);
+                fiber = factor.multiply(dish.getFiber() != null ? dish.getFiber() : BigDecimal.ZERO);
+            }
 
             totalCalorieToAdd += cal;
 
+            // 构建明细对象
             CheckInDetail detail = new CheckInDetail();
             detail.setMealType(dto.getMealType());
+
+            // 🌟 核心：存储正确的 ID 和 名称
             detail.setDishId(dto.getDishId());
+            detail.setAiRecordId(dto.getAiRecordId());
+            detail.setFoodName(finalFoodName);
+
             detail.setCalorie(cal);
             detail.setCarbohydrate(carb.setScale(1, RoundingMode.HALF_UP));
             detail.setProtein(protein.setScale(1, RoundingMode.HALF_UP));
             detail.setFat(fat.setScale(1, RoundingMode.HALF_UP));
             detail.setFiber(fiber.setScale(1, RoundingMode.HALF_UP));
             detail.setType(dto.getType() != null ? dto.getType() : 2);
-            detail.setCreateTime(java.time.LocalDateTime.now());
+            detail.setCreateTime(LocalDateTime.now());
 
             detailList.add(detail);
         }
@@ -192,18 +252,19 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
             throw new BusinessException("打卡失败：无可用的食物数据");
         }
 
-        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<CheckIn> query = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
-        query.eq(CheckIn::getUserId, userId).eq(CheckIn::getDate, targetDate); // 🌟
+        // 保存主表
+        LambdaQueryWrapper<CheckIn> query = new LambdaQueryWrapper<>();
+        query.eq(CheckIn::getUserId, userId).eq(CheckIn::getDate, targetDate);
         CheckIn mainRecord = checkInMapper.selectOne(query);
 
         if (mainRecord == null) {
             mainRecord = new CheckIn();
-            mainRecord.setUserId(userId); // 🌟
+            mainRecord.setUserId(userId);
             mainRecord.setDate(targetDate);
-            mainRecord.setBudgetCalorie(calculateDynamicBudget(userId)); // 🌟
+            mainRecord.setBudgetCalorie(calculateDynamicBudget(userId));
             mainRecord.setTotalCalorie(totalCalorieToAdd);
             mainRecord.setBurnCalorie(0);
-            mainRecord.setCreateTime(java.time.LocalDateTime.now());
+            mainRecord.setCreateTime(LocalDateTime.now());
 
             try {
                 checkInMapper.insert(mainRecord);
@@ -221,8 +282,8 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
             detailMapper.insert(detail);
         }
 
-        if (targetDate.equals(java.time.LocalDate.now())) {
-            updateCheckInStat(userId, targetDate); // 🌟
+        if (targetDate.equals(LocalDate.now())) {
+            updateCheckInStat(userId, targetDate);
         }
 
         return "打卡成功！共计摄入 " + totalCalorieToAdd + " 千卡";
@@ -230,8 +291,7 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public String doExerciseCheckIn(Long userId, ExerciseCheckInDTO dto) { // 🌟 接收 userId
-        // 🌟 移除 dto.getUserId() == null 的校验
+    public String doExerciseCheckIn(Long userId, ExerciseCheckInDTO dto) {
         if (dto.getExerciseId() == null || dto.getDuration() == null) {
             throw new BusinessException("缺少必要参数");
         }
@@ -244,16 +304,16 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
         int calculatedBurnCalorie = (int) Math.round(caloriePerMinute * dto.getDuration());
 
         LambdaQueryWrapper<CheckIn> mainWrapper = new LambdaQueryWrapper<>();
-        mainWrapper.eq(CheckIn::getUserId, userId).eq(CheckIn::getDate, targetDate); // 🌟
+        mainWrapper.eq(CheckIn::getUserId, userId).eq(CheckIn::getDate, targetDate);
         CheckIn mainRecord = checkInMapper.selectOne(mainWrapper);
 
         boolean isFirstCheckInToday = false;
 
         if (mainRecord == null) {
             mainRecord = new CheckIn();
-            mainRecord.setUserId(userId); // 🌟
+            mainRecord.setUserId(userId);
             mainRecord.setDate(targetDate);
-            mainRecord.setBudgetCalorie(calculateDynamicBudget(userId)); // 🌟
+            mainRecord.setBudgetCalorie(calculateDynamicBudget(userId));
             mainRecord.setTotalCalorie(0);
             mainRecord.setBurnCalorie(calculatedBurnCalorie);
             mainRecord.setCreateTime(LocalDateTime.now());
@@ -274,7 +334,7 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
         exerciseRecordMapper.insert(record);
 
         if (isFirstCheckInToday && targetDate.equals(LocalDate.now())) {
-            updateCheckInStat(userId, targetDate); // 🌟
+            updateCheckInStat(userId, targetDate);
         }
 
         return "运动成功！增加了 " + calculatedBurnCalorie + " kcal 额度";
@@ -293,6 +353,7 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
         if (mainRecord == null) return vo;
 
         vo.setCheckIn(mainRecord);
+        // 注意：如果你这行代码报错，可能需要去 mapper XML 文件中确保 join 语句采用了 left join 处理 t_dish 表。
         List<MealVO> meals = detailMapper.getDetailMeals(mainRecord.getId());
         if (meals != null) vo.setMeals(meals);
 
@@ -388,11 +449,10 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
 
     @Override
     public CheckInAnalysisVO getDailyAnalysis(Long userId, String dateStr) {
-        java.time.LocalDate targetDate = java.time.LocalDate.parse(dateStr);
+        LocalDate targetDate = LocalDate.parse(dateStr);
         CheckInAnalysisVO vo = new CheckInAnalysisVO();
 
-        // 1. 查主表获取基础热量
-        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<CheckIn> mainQuery = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+        LambdaQueryWrapper<CheckIn> mainQuery = new LambdaQueryWrapper<>();
         mainQuery.eq(CheckIn::getUserId, userId).eq(CheckIn::getDate, targetDate);
         CheckIn mainRecord = checkInMapper.selectOne(mainQuery);
 
@@ -403,9 +463,9 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
             vo.setIntakeCalorie(0);
             vo.setBurnCalorie(0);
             vo.setRemainCalorie(budget);
-            vo.setTotalCarbohydrate(java.math.BigDecimal.ZERO);
-            vo.setTotalProtein(java.math.BigDecimal.ZERO);
-            vo.setTotalFat(java.math.BigDecimal.ZERO);
+            vo.setTotalCarbohydrate(BigDecimal.ZERO);
+            vo.setTotalProtein(BigDecimal.ZERO);
+            vo.setTotalFat(BigDecimal.ZERO);
             vo.setBreakfastCalorie(0);
             vo.setLunchCalorie(0);
             vo.setDinnerCalorie(0);
@@ -417,14 +477,13 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
             vo.setBurnCalorie(mainRecord.getBurnCalorie());
             vo.setRemainCalorie(budget - mainRecord.getTotalCalorie() + mainRecord.getBurnCalorie());
 
-            // 2. 查明细表汇总营养素和各餐次热量
-            com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<CheckInDetail> detailQuery = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+            LambdaQueryWrapper<CheckInDetail> detailQuery = new LambdaQueryWrapper<>();
             detailQuery.eq(CheckInDetail::getCheckInId, mainRecord.getId());
-            java.util.List<CheckInDetail> details = detailMapper.selectList(detailQuery);
+            List<CheckInDetail> details = detailMapper.selectList(detailQuery);
 
-            java.math.BigDecimal totalCarb = java.math.BigDecimal.ZERO;
-            java.math.BigDecimal totalPro = java.math.BigDecimal.ZERO;
-            java.math.BigDecimal totalFat = java.math.BigDecimal.ZERO;
+            BigDecimal totalCarb = BigDecimal.ZERO;
+            BigDecimal totalPro = BigDecimal.ZERO;
+            BigDecimal totalFat = BigDecimal.ZERO;
             int bCal = 0, lCal = 0, dCal = 0, sCal = 0;
 
             for (CheckInDetail detail : details) {
@@ -434,18 +493,10 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
 
                 if (detail.getMealType() != null && detail.getCalorie() != null) {
                     switch (detail.getMealType()) {
-                        case 1:
-                            bCal += detail.getCalorie();
-                            break;
-                        case 2:
-                            lCal += detail.getCalorie();
-                            break;
-                        case 3:
-                            dCal += detail.getCalorie();
-                            break;
-                        case 4:
-                            sCal += detail.getCalorie();
-                            break;
+                        case 1: bCal += detail.getCalorie(); break;
+                        case 2: lCal += detail.getCalorie(); break;
+                        case 3: dCal += detail.getCalorie(); break;
+                        case 4: sCal += detail.getCalorie(); break;
                     }
                 }
             }
@@ -459,9 +510,9 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
             vo.setSnackCalorie(sCal);
         }
 
-        vo.setRecommendCarbohydrate(new java.math.BigDecimal(budget * 0.5 / 4).setScale(1, java.math.RoundingMode.HALF_UP));
-        vo.setRecommendProtein(new java.math.BigDecimal(budget * 0.2 / 4).setScale(1, java.math.RoundingMode.HALF_UP));
-        vo.setRecommendFat(new java.math.BigDecimal(budget * 0.3 / 9).setScale(1, java.math.RoundingMode.HALF_UP));
+        vo.setRecommendCarbohydrate(new BigDecimal(budget * 0.5 / 4).setScale(1, RoundingMode.HALF_UP));
+        vo.setRecommendProtein(new BigDecimal(budget * 0.2 / 4).setScale(1, RoundingMode.HALF_UP));
+        vo.setRecommendFat(new BigDecimal(budget * 0.3 / 9).setScale(1, RoundingMode.HALF_UP));
 
         return vo;
     }
