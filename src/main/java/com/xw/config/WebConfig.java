@@ -22,7 +22,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Autowired
     private LoginInterceptor loginInterceptor;
 
-    @Value("${app.upload-path:../uploads}")
+    @Value("${app.upload-path:../../uploads}")
     private String uploadPath;
 
     /**

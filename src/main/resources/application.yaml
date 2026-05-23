@@ -19,4 +19,4 @@ mybatis-plus:
       id-type: assign_id
 
 app:
-  upload-path: ../uploads
+  upload-path: ../../uploads

@@ -18,11 +18,14 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
+/**
+ * @author XW
+ */
 @RestController
 @RequestMapping("/api/upload")
 public class FileController {
 
-    @Value("${app.upload-path:../uploads}")
+    @Value("${app.upload-path:../../uploads}")
     private String uploadPath;
 
     @Operation(summary = "上传文件")
