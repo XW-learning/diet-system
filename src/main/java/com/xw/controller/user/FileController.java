@@ -4,6 +4,7 @@ import com.xw.annotation.LogOperation;
 import com.xw.common.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -12,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
@@ -20,8 +22,8 @@ import java.util.UUID;
 @RequestMapping("/api/upload")
 public class FileController {
 
-    // 基础存储路径
-    private static final String UPLOAD_DIR = System.getProperty("user.dir") + "/uploads/";
+    @Value("${app.upload-path:../uploads}")
+    private String uploadPath;
 
     @Operation(summary = "上传文件")
     @LogOperation("上传文件")
@@ -36,7 +38,8 @@ public class FileController {
             String datePath = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd")) + "/";
 
             // 2. 检查并创建带有日期的子目录
-            File dir = new File(UPLOAD_DIR + datePath);
+            String baseDir = Paths.get(uploadPath).toAbsolutePath().normalize().toString();
+            File dir = new File(baseDir, datePath);
             if (!dir.exists()) {
                 dir.mkdirs(); // mkdirs() 会级联创建所有不存在的父目录
             }
@@ -50,7 +53,7 @@ public class FileController {
             String newFileName = UUID.randomUUID().toString() + extension;
 
             // 4. 将文件保存到具体的日期子目录中
-            File dest = new File(UPLOAD_DIR + datePath + newFileName);
+            File dest = new File(dir, newFileName);
             file.transferTo(dest);
 
             // 5. 动态拼接返回的 URL（解决 localhost 写死导致手机端无法访问的问题）
