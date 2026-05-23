@@ -1,0 +1,64 @@
+package com.xw.controller.user;
+
+import com.xw.annotation.LogOperation;
+import com.xw.common.Result;
+import com.xw.dto.user.CustomPlanSaveDTO;
+import com.xw.dto.user.DishReplaceDTO;
+import com.xw.entity.user.Dish;
+import com.xw.service.user.DishService;
+import com.xw.service.user.SearchHistoryService;
+import com.xw.utils.ThreadLocalUtil;
+import com.xw.vo.user.DishVO;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+/**
+ * @author XW
+ */
+@Tag(name = "菜品与定制方案模块")
+@RestController
+@RequestMapping("/api/dish")
+public class DishController {
+
+    @Autowired
+    private DishService dishService;
+
+    @Autowired
+    private SearchHistoryService searchHistoryService;
+
+    @Operation(summary = "获取可选菜品列表 (可按分类和关键词搜索)")
+    @GetMapping("/list")
+    public Result list(@RequestParam(required = false) String keyword,
+                       @RequestParam(required = false) Integer categoryId,
+                       @RequestHeader("token") String token) {
+
+        List<DishVO> dishList = dishService.searchDish(keyword, categoryId);
+
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            Long userId = 1L;
+            searchHistoryService.saveOrUpdateHistory(userId, keyword);
+        }
+
+        return Result.success(dishList);
+    }
+
+    @Operation(summary = "试替换菜品 (含过敏原自动校验)")
+    @LogOperation("试替换菜品")
+    @PostMapping("/replace")
+    public Result<DishVO> replaceDish(@RequestBody DishReplaceDTO dto) {
+        Long userId = ThreadLocalUtil.getCurrentUserId();
+        return Result.success(dishService.replaceDish(userId, dto));
+    }
+
+    @Operation(summary = "确认保存为专属方案")
+    @LogOperation("确认保存为专属方案")
+    @PostMapping("/custom/save")
+    public Result<String> saveCustomPlan(@RequestBody CustomPlanSaveDTO dto) {
+        Long userId = ThreadLocalUtil.getCurrentUserId();
+        return Result.success(dishService.saveCustomPlan(userId, dto));
+    }
+}
