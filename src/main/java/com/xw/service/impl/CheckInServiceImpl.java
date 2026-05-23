@@ -327,6 +327,8 @@ public class CheckInServiceImpl extends ServiceImpl<CheckInMapper, CheckIn> impl
 
         ExerciseRecord record = new ExerciseRecord();
         record.setCheckInId(mainRecord.getId());
+        record.setUserId(userId);
+        record.setRecordDate(targetDate);
         record.setExerciseName(exercise.getName());
         record.setDuration(dto.getDuration());
         record.setBurnCalorie(calculatedBurnCalorie);

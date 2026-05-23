@@ -3,6 +3,7 @@ package com.xw.entity;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -14,6 +15,8 @@ public class ExerciseRecord {
     @TableId
     private Long id;
     private Long checkInId;
+    private Long userId;
+    private LocalDate recordDate;
     private String exerciseName;
     private Integer duration;
     private Integer burnCalorie;
